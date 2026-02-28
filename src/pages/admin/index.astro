@@ -1,16 +1,8 @@
 ---
 import RulesPage from '../../components/admin/RulesPage';
+import AppLayout from '../../layouts/AppLayout.astro';
 ---
-<html lang="en">
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width" />
-    <title>规则管理 - GoldWatch</title>
-    <style is:global>
-      body { margin: 0; }
-    </style>
-</head>
-<body>
-    <RulesPage client:only="react" />
-</body>
-</html>
+
+<AppLayout title="规则管理 - GoldWatch">
+  <RulesPage client:only="react" />
+</AppLayout>

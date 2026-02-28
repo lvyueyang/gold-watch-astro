@@ -1,7 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Button, Switch, Modal, Form, Input, Select, message, Space, InputNumber } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import AdminLayout from './AdminLayout';
+import { Plus, Edit, Trash2 } from 'lucide-react';
+import { ToastProvider, useToast } from '@/components/ui/toast';
 
 interface Rule {
   id: string;
@@ -25,17 +35,17 @@ interface Webhook {
   configured: boolean;
 }
 
-const RulesPage: React.FC = () => {
+const RulesContent: React.FC = () => {
   const [rules, setRules] = useState<Rule[]>([]);
   const [instruments, setInstruments] = useState<Instrument[]>([]);
   const [webhooks, setWebhooks] = useState<Webhook[]>([]);
   const [loading, setLoading] = useState(false);
+  const { show } = useToast();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<Rule | null>(null);
-  const [form] = Form.useForm();
-
-  // Watch type change to update form fields
-  const ruleType = Form.useWatch('type', form);
+  
+  // Form state
+  const [formData, setFormData] = useState<any>({});
 
   const fetchRules = async () => {
     setLoading(true);
@@ -44,12 +54,12 @@ const RulesPage: React.FC = () => {
       const data = await res.json();
       setRules(Array.isArray(data) ? data : []);
     } catch (error) {
-      message.error('获取规则失败');
+      show({ title: '获取规则失败', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
   };
-
+  
   const fetchInstruments = async () => {
     try {
       const res = await fetch('/api/instruments');
@@ -59,14 +69,11 @@ const RulesPage: React.FC = () => {
       console.error('Failed to fetch instruments');
     }
   };
-
+  
   const fetchWebhooks = async () => {
     try {
       const res = await fetch('/api/webhooks');
       const data = await res.json();
-      // Only keep configured webhooks? Or all? Let's show all but mark configured.
-      // Ideally only allow selecting configured ones, or warn if unconfigured.
-      // For now, let's just list them.
       setWebhooks(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Failed to fetch webhooks');
@@ -81,65 +88,72 @@ const RulesPage: React.FC = () => {
 
   const handleCreate = () => {
     setEditingRule(null);
-    form.resetFields();
-    // Set default values
-    form.setFieldsValue({
+    setFormData({
+      name: '',
+      instrumentId: '',
       type: 'touch',
       active: true,
+      target: '',
+      lower: '',
+      upper: '',
       notifyChannels: [],
-      throttleMs: 600000, // 10 minutes
+      throttleMs: 600000
     });
     setIsModalOpen(true);
   };
 
   const handleEdit = (record: Rule) => {
     setEditingRule(record);
-
-    // Flatten params and notify for form
-    const formData = {
-      ...record,
-      ...record.params, // Spread params (target, lower, upper)
+    setFormData({
+      name: record.name,
+      instrumentId: record.instrumentId,
+      type: record.type,
+      active: record.active,
+      target: record.params.target || '',
+      lower: record.params.lower || '',
+      upper: record.params.upper || '',
       notifyChannels: record.notify.channels,
       throttleMs: record.notify.throttleMs,
-    };
-
-    form.setFieldsValue(formData);
+    });
     setIsModalOpen(true);
   };
 
   const handleDelete = async (id: string) => {
+    if (!confirm('确定要删除吗？')) return;
     try {
       await fetch(`/api/rules/${id}`, { method: 'DELETE' });
-      message.success('规则已删除');
+      show({ title: '规则已删除', variant: 'success' });
       fetchRules();
     } catch (error) {
-      message.error('删除规则失败');
+      show({ title: '删除规则失败', variant: 'destructive' });
     }
   };
 
-  const handleOk = async () => {
+  const handleSave = async () => {
+    // Basic validation
+    if (!formData.name || !formData.instrumentId) {
+      show({ title: '请填写必要信息', variant: 'destructive' });
+      return;
+    }
+
     try {
-      const values = await form.validateFields();
-
-      // Construct params based on type
       let params: any = {};
-      if (values.type === 'range') {
-        params = { lower: values.lower, upper: values.upper };
+      if (formData.type === 'range') {
+        params = { lower: Number(formData.lower), upper: Number(formData.upper) };
       } else {
-        params = { target: values.target };
+        params = { target: Number(formData.target) };
       }
-
-      // Construct notify
+      
       const notify = {
-        channels: values.notifyChannels,
-        throttleMs: values.throttleMs,
+        channels: formData.notifyChannels,
+        throttleMs: Number(formData.throttleMs)
       };
 
       const payload = {
-        name: values.name,
-        instrumentId: values.instrumentId,
-        type: values.type,
-        active: values.active,
+        name: formData.name,
+        instrumentId: formData.instrumentId,
+        type: formData.type,
+        active: formData.active,
         params,
         notify,
       };
@@ -149,207 +163,231 @@ const RulesPage: React.FC = () => {
           method: 'PATCH',
           body: JSON.stringify(payload),
         });
-        message.success('规则更新成功');
+        show({ title: '规则更新成功', variant: 'success' });
       } else {
         await fetch('/api/rules', {
           method: 'POST',
           body: JSON.stringify(payload),
         });
-        message.success('规则创建成功');
+        show({ title: '规则创建成功', variant: 'success' });
       }
       setIsModalOpen(false);
       fetchRules();
     } catch (error) {
       console.error(error);
-      message.error('操作失败');
+      show({ title: '操作失败', variant: 'destructive' });
     }
   };
 
-  const columns = [
-    { title: '规则名称', dataIndex: 'name', key: 'name' },
-    { title: '标的', dataIndex: 'instrumentId', key: 'instrumentId' },
-    { title: '类型', dataIndex: 'type', key: 'type' },
-    {
-      title: '启用状态',
-      dataIndex: 'active',
-      key: 'active',
-      render: (active: boolean) => (
-        <Switch
-          checked={active}
-          disabled
-        />
-      ),
-    },
-    {
-      title: '操作',
-      key: 'action',
-      render: (_: any, record: Rule) => (
-        <Space size="middle">
-          <Button
-            icon={<EditOutlined />}
-            onClick={() => handleEdit(record)}
-          />
-          <Button
-            icon={<DeleteOutlined />}
-            danger
-            onClick={() => handleDelete(record.id)}
-          />
-        </Space>
-      ),
-    },
-  ];
+  const handleChannelChange = (channelKey: string, checked: boolean) => {
+    const currentChannels = formData.notifyChannels || [];
+    if (checked) {
+      setFormData({ ...formData, notifyChannels: [...currentChannels, channelKey] });
+    } else {
+      setFormData({ ...formData, notifyChannels: currentChannels.filter((c: string) => c !== channelKey) });
+    }
+  };
 
   return (
-    <AdminLayout selectedKey="rules">
-      <div style={{ marginBottom: 16 }}>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={handleCreate}
-        >
-          新建规则
+    <>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold tracking-tight">规则管理</h1>
+        <Button onClick={handleCreate}>
+          <Plus className="mr-2 h-4 w-4" /> 新建规则
         </Button>
       </div>
-      <Table
-        dataSource={rules}
-        columns={columns}
-        rowKey="id"
-        loading={loading}
-      />
 
-      <Modal
-        title={editingRule ? '编辑规则' : '新建规则'}
-        open={isModalOpen}
-        onOk={handleOk}
-        onCancel={() => setIsModalOpen(false)}
-      >
-        <Form
-          form={form}
-          layout="vertical"
-        >
-          <Form.Item
-            name="name"
-            label="规则名称"
-            rules={[{ required: true, message: '请输入规则名称' }]}
-          >
-            <Input />
-          </Form.Item>
-          <Form.Item
-            name="instrumentId"
-            label="监控标的"
-            rules={[{ required: true, message: '请选择监控标的' }]}
-          >
-            <Select placeholder="请选择">
-              {instruments.map((inst) => (
-                <Select.Option
-                  key={inst.id}
-                  value={inst.id}
-                >
-                  {inst.name} ({inst.id})
-                </Select.Option>
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>规则名称</TableHead>
+                <TableHead>标的</TableHead>
+                <TableHead>类型</TableHead>
+                <TableHead>状态</TableHead>
+                <TableHead className="text-right">操作</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rules.map((rule) => (
+                <TableRow key={rule.id}>
+                  <TableCell className="font-medium">{rule.name}</TableCell>
+                  <TableCell>{rule.instrumentId}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{rule.type}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={rule.active ? "success" : "secondary"}>
+                      {rule.active ? "启用" : "禁用"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button variant="ghost" size="icon" onClick={() => handleEdit(rule)}>
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(rule.id)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
               ))}
-            </Select>
-          </Form.Item>
-          <Form.Item
-            name="type"
-            label="触发类型"
-            rules={[{ required: true }]}
-          >
-            <Select>
-              <Select.Option value="touch">触达 (Touch)</Select.Option>
-              <Select.Option value="cross_up">上穿 (Cross Up)</Select.Option>
-              <Select.Option value="cross_down">下穿 (Cross Down)</Select.Option>
-              <Select.Option value="range">区间 (Range)</Select.Option>
-            </Select>
-          </Form.Item>
+              {rules.length === 0 && !loading && (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
+                    暂无规则
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
-          {ruleType === 'range' ? (
-            <Form.Item
-              label="价格区间"
-              style={{ marginBottom: 0 }}
-            >
-              <div style={{ display: 'flex', gap: 8 }}>
-                <Form.Item
-                  name="lower"
-                  rules={[{ required: true, message: '请输入下限' }]}
-                  style={{ flex: 1 }}
-                >
-                  <InputNumber
-                    style={{ width: '100%' }}
-                    placeholder="下限"
-                    step={0.01}
-                  />
-                </Form.Item>
-                <span style={{ lineHeight: '32px' }}>-</span>
-                <Form.Item
-                  name="upper"
-                  rules={[{ required: true, message: '请输入上限' }]}
-                  style={{ flex: 1 }}
-                >
-                  <InputNumber
-                    style={{ width: '100%' }}
-                    placeholder="上限"
-                    step={0.01}
-                  />
-                </Form.Item>
-              </div>
-            </Form.Item>
-          ) : (
-            <Form.Item
-              name="target"
-              label="目标价格"
-              rules={[{ required: true, message: '请输入目标价格' }]}
-            >
-              <InputNumber
-                style={{ width: '100%' }}
-                step={0.01}
-                placeholder="例如: 580.00"
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>{editingRule ? '编辑规则' : '新建规则'}</DialogTitle>
+            <DialogDescription>
+              配置价格监控规则，当触发条件时发送通知。
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="name">规则名称</Label>
+              <Input 
+                id="name" 
+                value={formData.name} 
+                onChange={(e) => setFormData({...formData, name: e.target.value})} 
               />
-            </Form.Item>
-          )}
-
-          <Form.Item label="通知配置">
-            <Form.Item
-              name="notifyChannels"
-              label="通知渠道"
-              rules={[{ required: true, message: '请选择至少一个通知渠道' }]}
-            >
-              <Select
-                mode="multiple"
-                placeholder="请选择渠道"
+            </div>
+            
+            <div className="grid gap-2">
+              <Label htmlFor="instrument">监控标的</Label>
+              <Select 
+                value={formData.instrumentId} 
+                onValueChange={(val) => setFormData({...formData, instrumentId: val})}
               >
-                {webhooks.map((wh) => (
-                  <Select.Option
-                    key={wh.key}
-                    value={wh.key}
-                    disabled={!wh.configured}
-                  >
-                    {wh.type} {wh.configured ? '' : '(未配置)'}
-                  </Select.Option>
-                ))}
+                <SelectTrigger>
+                  <SelectValue placeholder="选择标的" />
+                </SelectTrigger>
+                <SelectContent>
+                  {instruments.map(inst => (
+                    <SelectItem key={inst.id} value={inst.id}>{inst.name} ({inst.id})</SelectItem>
+                  ))}
+                </SelectContent>
               </Select>
-            </Form.Item>
-            <Form.Item
-              name="throttleMs"
-              label="通知冷却时间 (毫秒)"
-              rules={[{ required: true }]}
-            >
-              <InputNumber
-                style={{ width: '100%' }}
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="type">触发类型</Label>
+              <Select 
+                value={formData.type} 
+                onValueChange={(val) => setFormData({...formData, type: val})}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="选择类型" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="touch">触达 (Touch)</SelectItem>
+                  <SelectItem value="cross_up">上穿 (Cross Up)</SelectItem>
+                  <SelectItem value="cross_down">下穿 (Cross Down)</SelectItem>
+                  <SelectItem value="range">区间 (Range)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {formData.type === 'range' ? (
+              <div className="grid gap-2">
+                <Label>价格区间</Label>
+                <div className="flex items-center gap-2">
+                  <Input 
+                    type="number" 
+                    placeholder="下限" 
+                    value={formData.lower}
+                    onChange={(e) => setFormData({...formData, lower: e.target.value})}
+                  />
+                  <span>-</span>
+                  <Input 
+                    type="number" 
+                    placeholder="上限" 
+                    value={formData.upper}
+                    onChange={(e) => setFormData({...formData, upper: e.target.value})}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="grid gap-2">
+                <Label>目标价格</Label>
+                <Input 
+                  type="number" 
+                  placeholder="例如: 580.00" 
+                  value={formData.target}
+                  onChange={(e) => setFormData({...formData, target: e.target.value})}
+                />
+              </div>
+            )}
+
+            <div className="grid gap-2">
+              <Label>通知渠道</Label>
+              <div className="flex flex-col gap-2 border p-3 rounded-md">
+                {webhooks.map(wh => (
+                  <div key={wh.key} className="flex items-center space-x-2">
+                    <Checkbox 
+                      id={`wh-${wh.key}`} 
+                      checked={formData.notifyChannels?.includes(wh.key)}
+                      onCheckedChange={(checked) => handleChannelChange(wh.key, checked as boolean)}
+                      disabled={!wh.configured}
+                    />
+                    <label 
+                      htmlFor={`wh-${wh.key}`} 
+                      className={`text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 ${!wh.configured ? 'text-muted-foreground' : ''}`}
+                    >
+                      {wh.type} {!wh.configured && '(未配置)'}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid gap-2">
+              <Label>冷却时间 (毫秒)</Label>
+              <Input 
+                type="number" 
+                value={formData.throttleMs}
+                onChange={(e) => setFormData({...formData, throttleMs: e.target.value})}
                 step={60000}
               />
-            </Form.Item>
-          </Form.Item>
-          <Form.Item
-            name="active"
-            label="启用"
-            valuePropName="checked"
-          >
-            <Switch />
-          </Form.Item>
-        </Form>
-      </Modal>
-    </AdminLayout>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Switch 
+                id="active" 
+                checked={formData.active}
+                onCheckedChange={(checked) => setFormData({...formData, active: checked})}
+              />
+              <Label htmlFor="active">启用规则</Label>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsModalOpen(false)}>取消</Button>
+            <Button onClick={handleSave}>保存</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+};
+
+const RulesPage: React.FC = () => {
+  return (
+    <ToastProvider>
+      <AdminLayout selectedKey="rules">
+        <RulesContent />
+      </AdminLayout>
+    </ToastProvider>
   );
 };
 

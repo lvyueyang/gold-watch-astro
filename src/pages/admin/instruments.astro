@@ -1,16 +1,7 @@
 ---
 import InstrumentsPage from '../../components/admin/InstrumentsPage';
+import AppLayout from '../../layouts/AppLayout.astro';
 ---
-<html lang="en">
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width" />
-    <title>标的管理 - GoldWatch</title>
-    <style is:global>
-      body { margin: 0; }
-    </style>
-</head>
-<body>
-    <InstrumentsPage client:only="react" />
-</body>
-</html>
+<AppLayout title="标的管理 - GoldWatch">
+  <InstrumentsPage client:only="react" />
+</AppLayout>

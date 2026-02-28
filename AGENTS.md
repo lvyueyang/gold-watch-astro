@@ -7,7 +7,7 @@
 - **运行时/部署平台**: [Cloudflare Workers](https://workers.cloudflare.com/) (Standard) + [Cloudflare Pages](https://pages.cloudflare.com/)
 - **核心框架**: [Astro](https://astro.build/) (SSR Mode, adapter: `@astrojs/cloudflare`)
 - **前端框架**: [React](https://react.dev/) + TSX
-- **UI 组件库**: [Ant Design (antd)](https://ant.design/)
+- **UI 组件库**: [shadcn/ui](https://ui.shadcn.com/) + Tailwind CSS
 - **编程语言**: [TypeScript](https://www.typescriptlang.org/)
 - **包管理器**: [pnpm](https://pnpm.io/)
 - **代码规范/格式化**: [Biome](https://biomejs.dev/)
@@ -18,7 +18,7 @@
 
 - **必须**使用 `pnpm` 进行依赖安装与管理。
 - 禁止使用 `npm` 或 `yarn`，以免生成冲突的 lock 文件。
-- 安装依赖示例：`pnpm add antd @types/react`。
+- 安装依赖示例：`pnpm add @astrojs/tailwind lucide-react @radix-ui/react-dialog`。
 
 ### 2.2 代码风格 (Biome)
 
@@ -67,15 +67,15 @@
   - Key 命名规范：大写下划线，如 `WEBHOOK_FEISHU`, `ADMIN_USER`。
   - 读写操作应封装在 `src/lib/kv.ts` 中，避免散落在业务代码里。
 
-## 5. 前端开发规范 (React + Antd)
+## 5. 前端开发规范 (React + shadcn/ui)
 
 - **组件引入**: 在 `.astro` 文件中使用 React 组件时，必须添加 `client:*` 指令（通常用 `client:load` 或 `client:only="react"`），否则组件将无法交互。
   ```astro
   <PriceMonitor client:load />
   ```
-- **Ant Design 集成**:
-  - 需处理好 SSR 样式兼容性（Astro + Antd SSR）。
-  - 尽量使用 Antd 的 Token 系统（ConfigProvider）进行样式定制，减少手写 CSS。
+- **shadcn/ui 集成**:
+  - 使用 Tailwind CSS 进行样式定制。
+  - 组件按需拷贝到 `src/components/ui/`，可自由修改。
 - **状态管理**: 简单状态使用 `useState`/`useReducer`，全局状态可使用 React Context 或 Nano Stores（Astro 推荐）。
 
 ## 6. 开发与部署流程

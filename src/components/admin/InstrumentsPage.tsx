@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Tag, message, Button, Modal, Form, Input, InputNumber, Select } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
 import AdminLayout from './AdminLayout';
+import { ToastProvider, useToast } from '@/components/ui/toast';
 
 interface Instrument {
   id: string;
@@ -11,11 +13,10 @@ interface Instrument {
   precision: number;
 }
 
-const InstrumentsPage: React.FC = () => {
+const InstrumentsContent: React.FC = () => {
   const [instruments, setInstruments] = useState<Instrument[]>([]);
   const [loading, setLoading] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [form] = Form.useForm();
+  const { show } = useToast();
 
   const fetchInstruments = async () => {
     setLoading(true);
@@ -24,7 +25,7 @@ const InstrumentsPage: React.FC = () => {
       const data = await res.json();
       setInstruments(Array.isArray(data) ? data : []);
     } catch (error) {
-      message.error('获取标的失败');
+      show({ title: '获取标的失败', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -34,62 +35,58 @@ const InstrumentsPage: React.FC = () => {
     fetchInstruments();
   }, []);
 
-  const handleCreate = () => {
-    form.resetFields();
-    setIsModalOpen(true);
-  };
-
-  const handleOk = async () => {
-    // Currently API only supports GET, so this is just a mockup for future implementation
-    message.info('标的由代码中的适配器定义，不支持动态添加');
-    setIsModalOpen(false);
-  };
-
-  const columns = [
-    { title: '标的 ID', dataIndex: 'id', key: 'id' },
-    { title: '名称', dataIndex: 'name', key: 'name' },
-    { title: 'Symbol', dataIndex: 'symbol', key: 'symbol' },
-    { 
-      title: '来源适配器', 
-      dataIndex: 'source', 
-      key: 'source',
-      render: (text: string) => <Tag color="blue">{text}</Tag>
-    },
-    { title: '精度', dataIndex: 'precision', key: 'precision' },
-  ];
-
   return (
-    <AdminLayout selectedKey="instruments">
-      <div style={{ marginBottom: 16 }}>
-        <Button disabled icon={<PlusOutlined />} onClick={handleCreate}>
-          添加标的 (代码定义)
-        </Button>
+    <>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold tracking-tight">标的管理</h1>
       </div>
-      <Table 
-        dataSource={instruments} 
-        columns={columns} 
-        rowKey="id" 
-        loading={loading} 
-        pagination={false}
-      />
 
-      <Modal title="添加标的" open={isModalOpen} onOk={handleOk} onCancel={() => setIsModalOpen(false)}>
-        <Form form={form} layout="vertical">
-          <Form.Item name="id" label="ID" rules={[{ required: true }]}>
-            <Input placeholder="XAU-CN" />
-          </Form.Item>
-          <Form.Item name="name" label="名称" rules={[{ required: true }]}>
-            <Input placeholder="工行积存金" />
-          </Form.Item>
-          <Form.Item name="source" label="来源">
-             <Select defaultValue="icbc">
-               <Select.Option value="icbc">ICBC</Select.Option>
-               <Select.Option value="binance">Binance</Select.Option>
-             </Select>
-          </Form.Item>
-        </Form>
-      </Modal>
-    </AdminLayout>
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>标的 ID</TableHead>
+                <TableHead>名称</TableHead>
+                <TableHead>Symbol</TableHead>
+                <TableHead>来源适配器</TableHead>
+                <TableHead>精度</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {instruments.map((inst) => (
+                <TableRow key={inst.id}>
+                  <TableCell className="font-medium">{inst.id}</TableCell>
+                  <TableCell>{inst.name}</TableCell>
+                  <TableCell>{inst.symbol}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{inst.source}</Badge>
+                  </TableCell>
+                  <TableCell>{inst.precision}</TableCell>
+                </TableRow>
+              ))}
+              {instruments.length === 0 && !loading && (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
+                    暂无标的
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </>
+  );
+};
+
+const InstrumentsPage: React.FC = () => {
+  return (
+    <ToastProvider>
+      <AdminLayout selectedKey="instruments">
+        <InstrumentsContent />
+      </AdminLayout>
+    </ToastProvider>
   );
 };
 
