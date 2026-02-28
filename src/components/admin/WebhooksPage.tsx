@@ -1,10 +1,18 @@
-import React, { useEffect, useState } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import AdminLayout from './AdminLayout';
-import { ToastProvider, useToast } from '@/components/ui/toast';
+import type React from "react";
+import { useCallback, useEffect, useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { ToastProvider, useToast } from "@/components/ui/toast";
+import AdminLayout from "./AdminLayout";
 
 interface Webhook {
   key: string;
@@ -18,43 +26,46 @@ const WebhooksContent: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const { show } = useToast();
 
-  const fetchWebhooks = async () => {
+  const fetchWebhooks = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/webhooks');
+      const res = await fetch("/api/webhooks");
       const data = await res.json();
       if (Array.isArray(data)) {
         setWebhooks(data);
       } else {
         setWebhooks([]);
       }
-    } catch (error) {
-      console.error(error);
-      show({ title: '获取通知渠道失败', variant: 'destructive' });
+    } catch (_error) {
+      show({ title: "获取通知渠道失败", variant: "destructive" });
     } finally {
       setLoading(false);
     }
-  };
+  }, [show]);
 
   useEffect(() => {
     fetchWebhooks();
-  }, []);
+  }, [fetchWebhooks]);
 
   const getTypeLabel = (type: string) => {
     const typeMap: Record<string, string> = {
-      feishu: '飞书',
-      wecom: '企业微信',
-      dingtalk: '钉钉'
+      feishu: "飞书",
+      wecom: "企业微信",
+      dingtalk: "钉钉",
     };
     return typeMap[type] || type.toUpperCase();
   };
 
   const getTypeVariant = (type: string) => {
     switch (type) {
-      case 'feishu': return 'success';
-      case 'wecom': return 'info';
-      case 'dingtalk': return 'warning';
-      default: return 'default';
+      case "feishu":
+        return "success";
+      case "wecom":
+        return "info";
+      case "dingtalk":
+        return "warning";
+      default:
+        return "default";
     }
   };
 
@@ -64,17 +75,43 @@ const WebhooksContent: React.FC = () => {
       const urlObj = new URL(url);
       return `${urlObj.origin}${urlObj.pathname.substring(0, 15)}...`;
     } catch {
-      return url.substring(0, 20) + '...';
+      return url.substring(0, 20) + "...";
     }
   };
 
   return (
     <>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold tracking-tight">通知渠道</h1>
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">通知渠道</h1>
       </div>
 
-      <Card>
+      {/* Mobile View */}
+      <div className="grid grid-cols-1 gap-4 md:hidden">
+        {webhooks.map((wh) => (
+          <Card key={wh.key} className="shadow-sm">
+            <CardHeader className="pb-2">
+              <div className="flex justify-between items-start">
+                <CardTitle className="text-lg">{getTypeLabel(wh.type)}</CardTitle>
+                <Badge variant={wh.configured ? "default" : "secondary"}>
+                  {wh.configured ? "已配置" : "未配置"}
+                </Badge>
+              </div>
+              <CardDescription>{wh.key}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-sm font-mono text-muted-foreground break-all bg-muted p-2 rounded">
+                {wh.url ? wh.url : "未配置 Webhook URL"}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+        {webhooks.length === 0 && !loading && (
+          <div className="text-center py-10 text-muted-foreground">暂无数据</div>
+        )}
+      </div>
+
+      {/* Desktop View */}
+      <Card className="hidden md:block">
         <CardContent className="p-0">
           <Table>
             <TableHeader>
@@ -95,12 +132,12 @@ const WebhooksContent: React.FC = () => {
                     <Badge variant={getTypeVariant(wh.type) as any}>{getTypeLabel(wh.type)}</Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={wh.configured ? "success" : "secondary"}>
-                      {wh.configured ? '已配置' : '未配置'}
+                    <Badge variant={wh.configured ? "default" : "secondary"}>
+                      {wh.configured ? "已配置" : "未配置"}
                     </Badge>
                   </TableCell>
                   <TableCell className="font-mono text-xs">
-                    {getMaskedUrl(wh.url)}
+                    {wh.url ? `${wh.url.substring(0, 30)}...` : "-"}
                   </TableCell>
                 </TableRow>
               ))}

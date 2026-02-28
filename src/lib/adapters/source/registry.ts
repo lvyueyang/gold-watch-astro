@@ -1,13 +1,11 @@
-import { ICBCAdapter } from './icbc';
-import type { SourceAdapter } from './index';
+import { ICBCAdapter } from "./icbc";
+import type { SourceAdapter } from "./index";
 
 // Registry of all source adapters
-const adapters: SourceAdapter[] = [
-  new ICBCAdapter(),
-];
+const adapters: SourceAdapter[] = [new ICBCAdapter()];
 
 export function getSourceAdapter(instrumentId: string): SourceAdapter | undefined {
-  return adapters.find(adapter => adapter.supports(instrumentId));
+  return adapters.find((adapter) => adapter.supports(instrumentId));
 }
 
 export function getAllSourceAdapters(): SourceAdapter[] {

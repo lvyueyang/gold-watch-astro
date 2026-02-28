@@ -1,46 +1,48 @@
-import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { User, Lock, Loader2 } from 'lucide-react';
-import { ToastProvider, useToast } from '@/components/ui/toast';
+import { Loader2, Lock, User } from "lucide-react";
+import type React from "react";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ToastProvider, useToast } from "@/components/ui/toast";
 
 const LoginInner: React.FC = () => {
   const [loading, setLoading] = useState(false);
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const { show } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
       });
 
       if (res.ok) {
-        show({ title: '登录成功', variant: 'success' });
-        window.location.href = '/admin';
+        show({ title: "登录成功", variant: "success" });
+        window.location.href = "/admin";
       } else {
         const data: any = await res.json();
-        show({ title: '登录失败', description: data.error, variant: 'destructive' });
+        show({ title: "登录失败", description: data.error, variant: "destructive" });
       }
     } catch (error) {
-      show({ title: '网络错误', variant: 'destructive' });
+      show({ title: "网络错误", variant: "destructive" });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex justify-center items-center h-screen bg-gray-100 dark:bg-zinc-950">
-      <Card className="w-[350px]">
+    <div className="flex justify-center items-center h-screen bg-background">
+      <Card className="w-full max-w-[350px] mx-4 shadow-lg border-primary/20">
         <CardHeader>
-          <CardTitle className="text-center">GoldWatch 管理后台</CardTitle>
+          <CardTitle className="text-center text-2xl font-bold text-primary">GoldWatch</CardTitle>
+          <p className="text-center text-sm text-muted-foreground">管理后台登录</p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit}>
@@ -75,11 +77,7 @@ const LoginInner: React.FC = () => {
                 </div>
               </div>
             </div>
-            <Button
-              className="w-full mt-6"
-              type="submit"
-              disabled={loading}
-            >
+            <Button className="w-full mt-6" type="submit" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               登录
             </Button>

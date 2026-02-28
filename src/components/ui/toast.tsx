@@ -1,14 +1,15 @@
-import React, { createContext, useContext, useState } from 'react';
+import type React from "react";
+import { createContext, useContext, useState } from "react";
 
 type ToastItem = {
   id: number;
   title?: string;
   description?: string;
-  variant?: 'default' | 'success' | 'destructive';
+  variant?: "default" | "success" | "destructive";
 };
 
 type ToastContextValue = {
-  show: (t: Omit<ToastItem, 'id'>) => void;
+  show: (t: Omit<ToastItem, "id">) => void;
 };
 
 const ToastContext = createContext<ToastContextValue | null>(null);
@@ -16,7 +17,7 @@ const ToastContext = createContext<ToastContextValue | null>(null);
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<ToastItem[]>([]);
 
-  const show = (t: Omit<ToastItem, 'id'>) => {
+  const show = (t: Omit<ToastItem, "id">) => {
     const id = Date.now() + Math.random();
     setItems((prev) => [...prev, { id, ...t }]);
     setTimeout(() => {
@@ -32,15 +33,17 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           <div
             key={item.id}
             className={`rounded-md border px-4 py-2 shadow-sm bg-card text-card-foreground ${
-              item.variant === 'success'
-                ? 'border-green-500'
-                : item.variant === 'destructive'
-                ? 'border-red-500'
-                : 'border-muted'
+              item.variant === "success"
+                ? "border-green-500"
+                : item.variant === "destructive"
+                  ? "border-red-500"
+                  : "border-muted"
             }`}
           >
             {item.title && <div className="font-medium">{item.title}</div>}
-            {item.description && <div className="text-sm text-muted-foreground">{item.description}</div>}
+            {item.description && (
+              <div className="text-sm text-muted-foreground">{item.description}</div>
+            )}
           </div>
         ))}
       </div>
@@ -51,7 +54,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 export function useToast() {
   const ctx = useContext(ToastContext);
   if (!ctx) {
-    throw new Error('useToast must be used within ToastProvider');
+    throw new Error("useToast must be used within ToastProvider");
   }
   return ctx;
 }

@@ -1,5 +1,5 @@
-import type { PriceTick } from './types';
-import { getSourceAdapter } from './adapters/source/registry';
+import { getSourceAdapter } from "./adapters/source/registry";
+import type { PriceTick } from "./types";
 
 export async function fetchPrice(instrumentId: string): Promise<PriceTick | null> {
   const adapter = getSourceAdapter(instrumentId);

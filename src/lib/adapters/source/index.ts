@@ -1,4 +1,4 @@
-import type { PriceTick } from '../../types';
+import type { PriceTick } from "../../types";
 
 export interface SourceAdapter {
   id: string; // e.g. "icbc", "binance"

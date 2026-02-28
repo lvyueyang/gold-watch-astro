@@ -1,11 +1,11 @@
-import type { APIRoute } from 'astro';
-import { getWebhookUrl } from '../../lib/kv';
+import type { APIRoute } from "astro";
+import { getWebhookUrl } from "../../lib/kv";
 
 export const GET: APIRoute = async ({ locals }) => {
   const env = locals.runtime.env;
 
   // Define known webhook keys to check
-  const keys = ['feishu', 'wecom', 'dingtalk'];
+  const keys = ["feishu", "wecom", "dingtalk"];
 
   const results = [];
 
@@ -20,6 +20,6 @@ export const GET: APIRoute = async ({ locals }) => {
   }
 
   return new Response(JSON.stringify(results), {
-    headers: { 'Content-Type': 'application/json' },
+    headers: { "Content-Type": "application/json" },
   });
 };
