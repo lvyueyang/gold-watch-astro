@@ -1,7 +1,6 @@
 import type React from "react";
 import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -48,13 +47,13 @@ const WebhooksContent: React.FC = () => {
     fetchWebhooks();
   }, [fetchWebhooks]);
 
-  const getMaskedUrl = (url: string | null) => {
+  const _getMaskedUrl = (url: string | null) => {
     if (!url) return <span className="text-muted-foreground">-</span>;
     try {
       const urlObj = new URL(url);
       return `${urlObj.origin}${urlObj.pathname.substring(0, 15)}...`;
     } catch {
-      return url.substring(0, 20) + "...";
+      return `${url.substring(0, 20)}...`;
     }
   };
 

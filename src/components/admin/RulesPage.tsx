@@ -1,6 +1,14 @@
+import { useForm } from "@tanstack/react-form";
+import {
+  QueryClient,
+  QueryClientProvider,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { Activity, Bell, Clock, Edit, Plus, Target, Trash2 } from "lucide-react";
 import type React from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,15 +42,26 @@ import { ToastProvider, useToast } from "@/components/ui/toast";
 import { getTypeLabel } from "@/lib/webhook-utils";
 import AdminLayout from "./AdminLayout";
 
+interface RuleParams {
+  target?: number;
+  lower?: number;
+  upper?: number;
+}
+
+interface RuleNotify {
+  channels: string[];
+  throttleMs: number;
+}
+
 interface Rule {
   id: string;
   name: string;
   instrumentId: string;
   type: string;
   active: boolean;
-  params: any;
-  notify: any;
-  state?: any;
+  params: RuleParams;
+  notify: RuleNotify;
+  state?: unknown;
 }
 
 interface Instrument {
@@ -56,160 +75,151 @@ interface Webhook {
   configured: boolean;
 }
 
+const queryClient = new QueryClient();
+
 const RulesContent: React.FC = () => {
-  const [rules, setRules] = useState<Rule[]>([]);
-  const [instruments, setInstruments] = useState<Instrument[]>([]);
-  const [webhooks, setWebhooks] = useState<Webhook[]>([]);
-  const [loading, setLoading] = useState(false);
   const { show } = useToast();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<Rule | null>(null);
+  const queryClient = useQueryClient();
 
-  // Form state
-  const [formData, setFormData] = useState<any>({});
-
-  const fetchRules = useCallback(async () => {
-    setLoading(true);
-    try {
+  // Queries
+  const { data: rules = [], isLoading: rulesLoading } = useQuery<Rule[]>({
+    queryKey: ["rules"],
+    queryFn: async () => {
       const res = await fetch("/api/rules");
-      const data = await res.json();
-      setRules(Array.isArray(data) ? data : []);
-    } catch (_error) {
-      show({ title: "获取规则失败", variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
-  }, [show]);
+      return await res.json();
+    },
+  });
 
-  const fetchInstruments = useCallback(async () => {
-    try {
+  const { data: instruments = [] } = useQuery<Instrument[]>({
+    queryKey: ["instruments"],
+    queryFn: async () => {
       const res = await fetch("/api/instruments");
-      const data = await res.json();
-      setInstruments(Array.isArray(data) ? data : []);
-    } catch (_error) {
-      console.error("Failed to fetch instruments");
-    }
-  }, []);
+      return await res.json();
+    },
+  });
 
-  const fetchWebhooks = useCallback(async () => {
-    try {
+  const { data: webhooks = [] } = useQuery<Webhook[]>({
+    queryKey: ["webhooks"],
+    queryFn: async () => {
       const res = await fetch("/api/webhooks");
-      const data = await res.json();
-      setWebhooks(Array.isArray(data) ? data : []);
-    } catch (_error) {
-      console.error("Failed to fetch webhooks");
-    }
-  }, []);
+      return await res.json();
+    },
+  });
 
-  useEffect(() => {
-    fetchRules();
-    fetchInstruments();
-    fetchWebhooks();
-  }, [fetchRules, fetchInstruments, fetchWebhooks]);
-
-  const handleCreate = () => {
-    setEditingRule(null);
-    setFormData({
-      name: "",
-      instrumentId: instruments.length > 0 ? instruments[0].id : "",
-      type: "touch",
-      active: true,
-      target: "",
-      lower: "",
-      upper: "",
-      notifyChannels: [],
-      throttleMs: 600000,
-    });
-    setIsModalOpen(true);
-  };
-
-  const handleEdit = (record: Rule) => {
-    setEditingRule(record);
-    setFormData({
-      name: record.name,
-      instrumentId: record.instrumentId,
-      type: record.type,
-      active: record.active,
-      target: record.params.target || "",
-      lower: record.params.lower || "",
-      upper: record.params.upper || "",
-      notifyChannels: record.notify.channels,
-      throttleMs: record.notify.throttleMs,
-    });
-    setIsModalOpen(true);
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!confirm("确定要删除吗？")) return;
-    try {
+  // Mutations
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
       await fetch(`/api/rules/${id}`, { method: "DELETE" });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["rules"] });
       show({ title: "规则已删除", variant: "success" });
-      fetchRules();
-    } catch (error) {
+    },
+    onError: () => {
       show({ title: "删除规则失败", variant: "destructive" });
-    }
-  };
+    },
+  });
 
-  const handleSave = async () => {
-    // Basic validation
-    if (!formData.name || !formData.instrumentId) {
-      show({ title: "请填写必要信息", variant: "destructive" });
-      return;
-    }
-
-    try {
-      let params: any = {};
-      if (formData.type === "range") {
-        params = { lower: Number(formData.lower), upper: Number(formData.upper) };
-      } else {
-        params = { target: Number(formData.target) };
-      }
-
-      const notify = {
-        channels: formData.notifyChannels,
-        throttleMs: Number(formData.throttleMs),
-      };
-
-      const payload = {
-        name: formData.name,
-        instrumentId: formData.instrumentId,
-        type: formData.type,
-        active: formData.active,
-        params,
-        notify,
-      };
-
-      if (editingRule) {
-        await fetch(`/api/rules/${editingRule.id}`, {
+  const saveMutation = useMutation({
+    mutationFn: async (data: Omit<Rule, "id"> & { id?: string }) => {
+      const { id, ...payload } = data;
+      if (id) {
+        await fetch(`/api/rules/${id}`, {
           method: "PATCH",
           body: JSON.stringify(payload),
         });
-        show({ title: "规则更新成功", variant: "success" });
       } else {
         await fetch("/api/rules", {
           method: "POST",
           body: JSON.stringify(payload),
         });
-        show({ title: "规则创建成功", variant: "success" });
       }
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["rules"] });
+      show({
+        title: variables.id ? "规则更新成功" : "规则创建成功",
+        variant: "success",
+      });
       setIsModalOpen(false);
-      fetchRules();
-    } catch (error) {
-      console.error(error);
+    },
+    onError: () => {
       show({ title: "操作失败", variant: "destructive" });
+    },
+  });
+
+  // Form
+  const form = useForm({
+    defaultValues: {
+      name: "",
+      instrumentId: "",
+      type: "touch",
+      active: true,
+      target: "",
+      lower: "",
+      upper: "",
+      notifyChannels: [] as string[],
+      throttleMs: 600000,
+    },
+    onSubmit: async ({ value }) => {
+      let params: RuleParams = {};
+      if (value.type === "range") {
+        params = { lower: Number(value.lower), upper: Number(value.upper) };
+      } else {
+        params = { target: Number(value.target) };
+      }
+
+      const notify = {
+        channels: value.notifyChannels,
+        throttleMs: Number(value.throttleMs),
+      };
+
+      const payload = {
+        id: editingRule?.id, // undefined for create
+        name: value.name,
+        instrumentId: value.instrumentId,
+        type: value.type,
+        active: value.active,
+        params,
+        notify,
+      };
+
+      await saveMutation.mutateAsync(payload);
+    },
+  });
+
+  const handleCreate = () => {
+    setEditingRule(null);
+    form.reset();
+    // Set default instrument if available
+    if (instruments.length > 0) {
+      form.setFieldValue("instrumentId", instruments[0].id);
     }
+    setIsModalOpen(true);
   };
 
-  const handleChannelChange = (channelKey: string, checked: boolean) => {
-    const currentChannels = formData.notifyChannels || [];
-    if (checked) {
-      setFormData({ ...formData, notifyChannels: [...currentChannels, channelKey] });
-    } else {
-      setFormData({
-        ...formData,
-        notifyChannels: currentChannels.filter((c: string) => c !== channelKey),
-      });
-    }
+  const handleEdit = (record: Rule) => {
+    setEditingRule(record);
+    form.reset();
+    // Populate form
+    form.setFieldValue("name", record.name);
+    form.setFieldValue("instrumentId", record.instrumentId);
+    form.setFieldValue("type", record.type);
+    form.setFieldValue("active", record.active);
+    form.setFieldValue("target", String(record.params.target || ""));
+    form.setFieldValue("lower", String(record.params.lower || ""));
+    form.setFieldValue("upper", String(record.params.upper || ""));
+    form.setFieldValue("notifyChannels", record.notify.channels || []);
+    form.setFieldValue("throttleMs", record.notify.throttleMs || 600000);
+
+    setIsModalOpen(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("确定要删除吗？")) return;
+    deleteMutation.mutate(id);
   };
 
   return (
@@ -229,7 +239,9 @@ const RulesContent: React.FC = () => {
               <div className="flex justify-between items-start">
                 <div>
                   <CardTitle className="text-lg">{rule.name}</CardTitle>
-                  <CardDescription className="mt-1">{rule.instrumentId}</CardDescription>
+                  <CardDescription className="mt-1">
+                    {instruments.find((i) => i.id === rule.instrumentId)?.name || rule.instrumentId}
+                  </CardDescription>
                 </div>
                 <Badge variant={rule.active ? "default" : "secondary"}>
                   {rule.active ? "启用" : "禁用"}
@@ -256,7 +268,7 @@ const RulesContent: React.FC = () => {
             </CardContent>
           </Card>
         ))}
-        {rules.length === 0 && !loading && (
+        {rules.length === 0 && !rulesLoading && (
           <div className="text-center py-10 text-muted-foreground">暂无规则</div>
         )}
       </div>
@@ -278,7 +290,9 @@ const RulesContent: React.FC = () => {
               {rules.map((rule) => (
                 <TableRow key={rule.id}>
                   <TableCell className="font-medium">{rule.name}</TableCell>
-                  <TableCell>{rule.instrumentId}</TableCell>
+                  <TableCell>
+                    {instruments.find((i) => i.id === rule.instrumentId)?.name || rule.instrumentId}
+                  </TableCell>
                   <TableCell>
                     <Badge variant="outline">{rule.type}</Badge>
                   </TableCell>
@@ -302,7 +316,7 @@ const RulesContent: React.FC = () => {
                   </TableCell>
                 </TableRow>
               ))}
-              {rules.length === 0 && !loading && (
+              {rules.length === 0 && !rulesLoading && (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
                     暂无规则
@@ -335,178 +349,215 @@ const RulesContent: React.FC = () => {
           <div className="grid gap-6 py-4">
             {/* Row 1: Name & Instrument */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="name" className="text-foreground/80 font-medium">
-                  规则名称
-                </Label>
-                <Input
-                  id="name"
-                  placeholder="例如: 黄金触达提醒"
-                  className="bg-secondary/50 border-input focus:border-primary/50 transition-colors"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                />
-              </div>
+              <form.Field name="name">
+                {(field) => (
+                  <div className="space-y-2">
+                    <Label htmlFor="name" className="text-foreground/80 font-medium">
+                      规则名称
+                    </Label>
+                    <Input
+                      id="name"
+                      placeholder="例如: 黄金触达提醒"
+                      className="bg-secondary/50 border-input focus:border-primary/50 transition-colors"
+                      value={field.state.value}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                    />
+                  </div>
+                )}
+              </form.Field>
 
-              <div className="space-y-2">
-                <Label htmlFor="instrument" className="text-foreground/80 font-medium">
-                  监控标的
-                </Label>
-                <Select
-                  value={formData.instrumentId}
-                  onValueChange={(val) => setFormData({ ...formData, instrumentId: val })}
-                >
-                  <SelectTrigger className="bg-secondary/50 border-input focus:ring-primary/20">
-                    <SelectValue placeholder="选择标的" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {instruments.map((inst) => (
-                      <SelectItem key={inst.id} value={inst.id}>
-                        <span className="font-medium text-foreground">{inst.name}</span>{" "}
-                        <span className="text-muted-foreground text-xs ml-1">({inst.id})</span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <form.Field name="instrumentId">
+                {(field) => (
+                  <div className="space-y-2">
+                    <Label htmlFor="instrument" className="text-foreground/80 font-medium">
+                      监控标的
+                    </Label>
+                    <Select
+                      value={field.state.value}
+                      onValueChange={(val) => field.handleChange(val)}
+                    >
+                      <SelectTrigger className="bg-secondary/50 border-input focus:ring-primary/20">
+                        <SelectValue placeholder="选择标的" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {instruments.map((inst) => (
+                          <SelectItem key={inst.id} value={inst.id}>
+                            <span className="font-medium text-foreground">{inst.name}</span>{" "}
+                            <span className="text-muted-foreground text-xs ml-1">({inst.id})</span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </form.Field>
             </div>
 
             {/* Row 2: Type & Target */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="type" className="text-foreground/80 font-medium">
-                  触发类型
-                </Label>
-                <Select
-                  value={formData.type}
-                  onValueChange={(val) => setFormData({ ...formData, type: val })}
-                >
-                  <SelectTrigger className="bg-secondary/50 border-input focus:ring-primary/20">
-                    <SelectValue placeholder="选择类型" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="touch">
-                      <div className="flex items-center gap-2">
-                        <Target className="w-4 h-4 text-primary" />
-                        <span>触达 (Touch)</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="cross_up">
-                      <div className="flex items-center gap-2">
-                        <Activity className="w-4 h-4 text-green-500" />
-                        <span>上穿 (Cross Up)</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="cross_down">
-                      <div className="flex items-center gap-2">
-                        <Activity className="w-4 h-4 text-red-500" />
-                        <span>下穿 (Cross Down)</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="range">
-                      <div className="flex items-center gap-2">
-                        <Activity className="w-4 h-4 text-blue-500" />
-                        <span>区间 (Range)</span>
-                      </div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                {formData.type === "range" ? (
-                  <>
-                    <Label className="text-foreground/80 font-medium">价格区间</Label>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        type="number"
-                        placeholder="下限"
-                        className="bg-secondary/50"
-                        value={formData.lower}
-                        onChange={(e) => setFormData({ ...formData, lower: e.target.value })}
-                      />
-                      <span className="text-muted-foreground">-</span>
-                      <Input
-                        type="number"
-                        placeholder="上限"
-                        className="bg-secondary/50"
-                        value={formData.upper}
-                        onChange={(e) => setFormData({ ...formData, upper: e.target.value })}
-                      />
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <Label className="text-foreground/80 font-medium">目标价格</Label>
-                    <div className="relative">
-                      <Input
-                        type="number"
-                        placeholder="0.00"
-                        className="bg-secondary/50 pl-8"
-                        value={formData.target}
-                        onChange={(e) => setFormData({ ...formData, target: e.target.value })}
-                      />
-                      <span className="absolute left-3 top-2.5 text-muted-foreground text-sm">
-                        ¥
-                      </span>
-                    </div>
-                  </>
+              <form.Field name="type">
+                {(field) => (
+                  <div className="space-y-2">
+                    <Label htmlFor="type" className="text-foreground/80 font-medium">
+                      触发类型
+                    </Label>
+                    <Select
+                      value={field.state.value}
+                      onValueChange={(val) => field.handleChange(val)}
+                    >
+                      <SelectTrigger className="bg-secondary/50 border-input focus:ring-primary/20">
+                        <SelectValue placeholder="选择类型" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="touch">
+                          <div className="flex items-center gap-2">
+                            <Target className="w-4 h-4 text-primary" />
+                            <span>触达 (Touch)</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="cross_up">
+                          <div className="flex items-center gap-2">
+                            <Activity className="w-4 h-4 text-green-500" />
+                            <span>上穿 (Cross Up)</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="cross_down">
+                          <div className="flex items-center gap-2">
+                            <Activity className="w-4 h-4 text-red-500" />
+                            <span>下穿 (Cross Down)</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="range">
+                          <div className="flex items-center gap-2">
+                            <Activity className="w-4 h-4 text-blue-500" />
+                            <span>区间 (Range)</span>
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 )}
-              </div>
+              </form.Field>
+
+              <form.Subscribe selector={(state) => [state.values.type]}>
+                {([type]) => (
+                  <div className="space-y-2">
+                    {type === "range" ? (
+                      <>
+                        <Label className="text-foreground/80 font-medium">价格区间</Label>
+                        <div className="flex items-center gap-2">
+                          <form.Field name="lower">
+                            {(field) => (
+                              <Input
+                                type="number"
+                                placeholder="下限"
+                                className="bg-secondary/50"
+                                value={field.state.value}
+                                onChange={(e) => field.handleChange(e.target.value)}
+                              />
+                            )}
+                          </form.Field>
+                          <span className="text-muted-foreground">-</span>
+                          <form.Field name="upper">
+                            {(field) => (
+                              <Input
+                                type="number"
+                                placeholder="上限"
+                                className="bg-secondary/50"
+                                value={field.state.value}
+                                onChange={(e) => field.handleChange(e.target.value)}
+                              />
+                            )}
+                          </form.Field>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <Label className="text-foreground/80 font-medium">目标价格</Label>
+                        <div className="relative">
+                          <form.Field name="target">
+                            {(field) => (
+                              <Input
+                                type="number"
+                                placeholder="0.00"
+                                className="bg-secondary/50 pl-8"
+                                value={field.state.value}
+                                onChange={(e) => field.handleChange(e.target.value)}
+                              />
+                            )}
+                          </form.Field>
+                          <span className="absolute left-3 top-2.5 text-muted-foreground text-sm">
+                            ¥
+                          </span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+              </form.Subscribe>
             </div>
 
             {/* Row 3: Notification Channels */}
             <div className="space-y-3">
               <Label className="text-foreground/80 font-medium">通知渠道</Label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {webhooks.map((wh) => {
-                  const isSelected = formData.notifyChannels?.includes(wh.key);
-                  return (
-                    <div
-                      key={wh.key}
-                      role="button"
-                      tabIndex={wh.configured ? 0 : -1}
-                      onClick={() => wh.configured && handleChannelChange(wh.key, !isSelected)}
-                      onKeyDown={(e) => {
-                        if (wh.configured && (e.key === "Enter" || e.key === " ")) {
-                          e.preventDefault();
-                          handleChannelChange(wh.key, !isSelected);
-                        }
-                      }}
-                      className={`
-                        relative flex items-center space-x-3 p-3 rounded-lg border transition-all cursor-pointer
-                        ${
-                          isSelected
-                            ? "border-primary bg-primary/5 shadow-sm ring-1 ring-primary/20"
-                            : "border-border hover:bg-secondary/50 hover:border-primary/30"
-                        }
-                        ${!wh.configured ? "bg-muted/10 border-dashed cursor-not-allowed" : "focus:outline-none focus:ring-2 focus:ring-primary/50"}
-                      `}
-                    >
-                      <div
-                        className={`
-                          w-4 h-4 rounded-full border flex items-center justify-center transition-colors
-                          ${isSelected ? "bg-primary border-primary" : "border-muted-foreground"}
-                          ${!wh.configured ? "opacity-50" : ""}
-                        `}
-                      >
-                        {isSelected && <div className="w-1.5 h-1.5 bg-background rounded-full" />}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div
-                          className={`font-medium text-sm truncate ${!wh.configured ? "text-muted-foreground" : "text-foreground"}`}
-                        >
-                          {getTypeLabel(wh.type)}
-                        </div>
-                        {!wh.configured && (
-                          <div className="text-[10px] text-destructive mt-0.5 font-medium">
-                            未配置 Webhook
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+                <form.Field name="notifyChannels">
+                  {(field) => (
+                    <>
+                      {webhooks.map((wh) => {
+                        const isSelected = field.state.value.includes(wh.key);
+                        return (
+                          <button
+                            type="button"
+                            key={wh.key}
+                            tabIndex={wh.configured ? 0 : -1}
+                            onClick={() => {
+                              if (wh.configured) {
+                                const newValue = isSelected
+                                  ? field.state.value.filter((v) => v !== wh.key)
+                                  : [...field.state.value, wh.key];
+                                field.handleChange(newValue);
+                              }
+                            }}
+                            className={`
+                              relative flex items-center space-x-3 p-3 rounded-lg border transition-all cursor-pointer text-left
+                              ${
+                                isSelected
+                                  ? "border-primary bg-primary/5 shadow-sm ring-1 ring-primary/20"
+                                  : "border-border hover:bg-secondary/50 hover:border-primary/30"
+                              }
+                              ${!wh.configured ? "bg-muted/10 border-dashed cursor-not-allowed" : "focus:outline-none focus:ring-2 focus:ring-primary/50"}
+                            `}
+                          >
+                            <div
+                              className={`
+                                w-4 h-4 rounded-full border flex items-center justify-center transition-colors
+                                ${isSelected ? "bg-primary border-primary" : "border-muted-foreground"}
+                                ${!wh.configured ? "opacity-50" : ""}
+                              `}
+                            >
+                              {isSelected && (
+                                <div className="w-1.5 h-1.5 bg-background rounded-full" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div
+                                className={`font-medium text-sm truncate ${!wh.configured ? "text-muted-foreground" : "text-foreground"}`}
+                              >
+                                {getTypeLabel(wh.type)}
+                              </div>
+                              {!wh.configured && (
+                                <div className="text-[10px] text-destructive mt-0.5 font-medium">
+                                  未配置 Webhook
+                                </div>
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </>
+                  )}
+                </form.Field>
                 {webhooks.length === 0 && (
                   <div className="col-span-full text-center p-4 border border-dashed rounded-lg text-sm text-muted-foreground bg-secondary/20">
                     暂无可用通知渠道，请先在设置中添加 Webhook。
@@ -517,21 +568,25 @@ const RulesContent: React.FC = () => {
 
             {/* Row 4: Throttle & Active */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
-              <div className="space-y-2">
-                <Label className="text-foreground/80 font-medium flex items-center gap-2">
-                  <Clock className="w-3.5 h-3.5" /> 冷却时间 (毫秒)
-                </Label>
-                <Input
-                  type="number"
-                  className="bg-secondary/50"
-                  value={formData.throttleMs}
-                  onChange={(e) => setFormData({ ...formData, throttleMs: e.target.value })}
-                  step={60000}
-                />
-                <p className="text-[10px] text-muted-foreground pl-1">
-                  默认 10 分钟 (600000ms)，避免频繁通知。
-                </p>
-              </div>
+              <form.Field name="throttleMs">
+                {(field) => (
+                  <div className="space-y-2">
+                    <Label className="text-foreground/80 font-medium flex items-center gap-2">
+                      <Clock className="w-3.5 h-3.5" /> 冷却时间 (毫秒)
+                    </Label>
+                    <Input
+                      type="number"
+                      className="bg-secondary/50"
+                      value={field.state.value}
+                      onChange={(e) => field.handleChange(Number(e.target.value))}
+                      step={60000}
+                    />
+                    <p className="text-[10px] text-muted-foreground pl-1">
+                      默认 10 分钟 (600000ms)，避免频繁通知。
+                    </p>
+                  </div>
+                )}
+              </form.Field>
 
               <div className="flex items-center justify-between p-3 border rounded-lg bg-secondary/20">
                 <div className="space-y-0.5">
@@ -542,11 +597,15 @@ const RulesContent: React.FC = () => {
                     关闭后将暂停监控，不再触发通知。
                   </p>
                 </div>
-                <Switch
-                  id="active"
-                  checked={formData.active}
-                  onCheckedChange={(checked) => setFormData({ ...formData, active: checked })}
-                />
+                <form.Field name="active">
+                  {(field) => (
+                    <Switch
+                      id="active"
+                      checked={field.state.value}
+                      onCheckedChange={(checked) => field.handleChange(checked)}
+                    />
+                  )}
+                </form.Field>
               </div>
             </div>
           </div>
@@ -556,7 +615,9 @@ const RulesContent: React.FC = () => {
               取消
             </Button>
             <Button
-              onClick={handleSave}
+              onClick={() => {
+                form.handleSubmit();
+              }}
               className="h-10 bg-primary text-primary-foreground hover:bg-primary/90 shadow-md"
             >
               {editingRule ? "保存修改" : "立即创建"}
@@ -570,11 +631,13 @@ const RulesContent: React.FC = () => {
 
 const RulesPage: React.FC = () => {
   return (
-    <ToastProvider>
-      <AdminLayout selectedKey="rules">
-        <RulesContent />
-      </AdminLayout>
-    </ToastProvider>
+    <QueryClientProvider client={queryClient}>
+      <ToastProvider>
+        <AdminLayout selectedKey="rules">
+          <RulesContent />
+        </AdminLayout>
+      </ToastProvider>
+    </QueryClientProvider>
   );
 };
 

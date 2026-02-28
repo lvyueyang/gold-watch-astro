@@ -77,6 +77,8 @@
   - 使用 Tailwind CSS 进行样式定制。
   - 组件按需拷贝到 `src/components/ui/`，可自由修改。
 - **状态管理**: 简单状态使用 `useState`/`useReducer`，全局状态可使用 React Context 或 Nano Stores（Astro 推荐）。
+- **表单处理**: 使用 [@tanstack/react-form](https://tanstack.com/form/latest/docs/installation) 进行表单状态管理与校验。
+- **异步状态与数据获取**: 使用 [@tanstack/react-query](https://tanstack.com/query/latest/docs/framework/react/quick-start) 管理服务端状态（Queries/Mutations）与缓存。
 
 ## 6. 开发与部署流程
 

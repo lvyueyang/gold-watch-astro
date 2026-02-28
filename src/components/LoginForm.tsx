@@ -27,10 +27,10 @@ const LoginInner: React.FC = () => {
         show({ title: "登录成功", variant: "success" });
         window.location.href = "/admin";
       } else {
-        const data: any = await res.json();
+        const data = (await res.json()) as { error: string };
         show({ title: "登录失败", description: data.error, variant: "destructive" });
       }
-    } catch (error) {
+    } catch (_error) {
       show({ title: "网络错误", variant: "destructive" });
     } finally {
       setLoading(false);
