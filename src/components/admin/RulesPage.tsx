@@ -1,10 +1,9 @@
-import { Edit, Plus, Trash2 } from "lucide-react";
+import { Activity, Bell, Clock, Edit, Plus, Target, Trash2 } from "lucide-react";
 import type React from "react";
 import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -32,6 +31,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ToastProvider, useToast } from "@/components/ui/toast";
+import { getTypeLabel } from "@/lib/webhook-utils";
 import AdminLayout from "./AdminLayout";
 
 interface Rule {
@@ -111,7 +111,7 @@ const RulesContent: React.FC = () => {
     setEditingRule(null);
     setFormData({
       name: "",
-      instrumentId: "",
+      instrumentId: instruments.length > 0 ? instruments[0].id : "",
       type: "touch",
       active: true,
       target: "",
@@ -315,137 +315,252 @@ const RulesContent: React.FC = () => {
       </Card>
 
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[600px] border-primary/20 shadow-2xl bg-card">
           <DialogHeader>
-            <DialogTitle>{editingRule ? "编辑规则" : "新建规则"}</DialogTitle>
-            <DialogDescription>配置价格监控规则，当触发条件时发送通知。</DialogDescription>
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-primary/10 rounded-full text-primary">
+                <Bell className="w-5 h-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl">
+                  {editingRule ? "编辑规则" : "新建规则"}
+                </DialogTitle>
+                <DialogDescription className="text-muted-foreground mt-1">
+                  配置价格监控规则，当触发条件时发送通知。
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
 
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="name">规则名称</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              />
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="instrument">监控标的</Label>
-              <Select
-                value={formData.instrumentId}
-                onValueChange={(val) => setFormData({ ...formData, instrumentId: val })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="选择标的" />
-                </SelectTrigger>
-                <SelectContent>
-                  {instruments.map((inst) => (
-                    <SelectItem key={inst.id} value={inst.id}>
-                      {inst.name} ({inst.id})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="type">触发类型</Label>
-              <Select
-                value={formData.type}
-                onValueChange={(val) => setFormData({ ...formData, type: val })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="选择类型" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="touch">触达 (Touch)</SelectItem>
-                  <SelectItem value="cross_up">上穿 (Cross Up)</SelectItem>
-                  <SelectItem value="cross_down">下穿 (Cross Down)</SelectItem>
-                  <SelectItem value="range">区间 (Range)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {formData.type === "range" ? (
-              <div className="grid gap-2">
-                <Label>价格区间</Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="number"
-                    placeholder="下限"
-                    value={formData.lower}
-                    onChange={(e) => setFormData({ ...formData, lower: e.target.value })}
-                  />
-                  <span>-</span>
-                  <Input
-                    type="number"
-                    placeholder="上限"
-                    value={formData.upper}
-                    onChange={(e) => setFormData({ ...formData, upper: e.target.value })}
-                  />
-                </div>
-              </div>
-            ) : (
-              <div className="grid gap-2">
-                <Label>目标价格</Label>
+          <div className="grid gap-6 py-4">
+            {/* Row 1: Name & Instrument */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="name" className="text-foreground/80 font-medium">
+                  规则名称
+                </Label>
                 <Input
-                  type="number"
-                  placeholder="例如: 580.00"
-                  value={formData.target}
-                  onChange={(e) => setFormData({ ...formData, target: e.target.value })}
+                  id="name"
+                  placeholder="例如: 黄金触达提醒"
+                  className="bg-secondary/50 border-input focus:border-primary/50 transition-colors"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 />
               </div>
-            )}
 
-            <div className="grid gap-2">
-              <Label>通知渠道</Label>
-              <div className="flex flex-col gap-2 border p-3 rounded-md">
-                {webhooks.map((wh) => (
-                  <div key={wh.key} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`wh-${wh.key}`}
-                      checked={formData.notifyChannels?.includes(wh.key)}
-                      onCheckedChange={(checked) => handleChannelChange(wh.key, checked as boolean)}
-                      disabled={!wh.configured}
-                    />
-                    <label
-                      htmlFor={`wh-${wh.key}`}
-                      className={`text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 ${!wh.configured ? "text-muted-foreground" : ""}`}
-                    >
-                      {wh.type} {!wh.configured && "(未配置)"}
-                    </label>
-                  </div>
-                ))}
+              <div className="space-y-2">
+                <Label htmlFor="instrument" className="text-foreground/80 font-medium">
+                  监控标的
+                </Label>
+                <Select
+                  value={formData.instrumentId}
+                  onValueChange={(val) => setFormData({ ...formData, instrumentId: val })}
+                >
+                  <SelectTrigger className="bg-secondary/50 border-input focus:ring-primary/20">
+                    <SelectValue placeholder="选择标的" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {instruments.map((inst) => (
+                      <SelectItem key={inst.id} value={inst.id}>
+                        <span className="font-medium text-foreground">{inst.name}</span>{" "}
+                        <span className="text-muted-foreground text-xs ml-1">({inst.id})</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
-            <div className="grid gap-2">
-              <Label>冷却时间 (毫秒)</Label>
-              <Input
-                type="number"
-                value={formData.throttleMs}
-                onChange={(e) => setFormData({ ...formData, throttleMs: e.target.value })}
-                step={60000}
-              />
+            {/* Row 2: Type & Target */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="type" className="text-foreground/80 font-medium">
+                  触发类型
+                </Label>
+                <Select
+                  value={formData.type}
+                  onValueChange={(val) => setFormData({ ...formData, type: val })}
+                >
+                  <SelectTrigger className="bg-secondary/50 border-input focus:ring-primary/20">
+                    <SelectValue placeholder="选择类型" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="touch">
+                      <div className="flex items-center gap-2">
+                        <Target className="w-4 h-4 text-primary" />
+                        <span>触达 (Touch)</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="cross_up">
+                      <div className="flex items-center gap-2">
+                        <Activity className="w-4 h-4 text-green-500" />
+                        <span>上穿 (Cross Up)</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="cross_down">
+                      <div className="flex items-center gap-2">
+                        <Activity className="w-4 h-4 text-red-500" />
+                        <span>下穿 (Cross Down)</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="range">
+                      <div className="flex items-center gap-2">
+                        <Activity className="w-4 h-4 text-blue-500" />
+                        <span>区间 (Range)</span>
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                {formData.type === "range" ? (
+                  <>
+                    <Label className="text-foreground/80 font-medium">价格区间</Label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        placeholder="下限"
+                        className="bg-secondary/50"
+                        value={formData.lower}
+                        onChange={(e) => setFormData({ ...formData, lower: e.target.value })}
+                      />
+                      <span className="text-muted-foreground">-</span>
+                      <Input
+                        type="number"
+                        placeholder="上限"
+                        className="bg-secondary/50"
+                        value={formData.upper}
+                        onChange={(e) => setFormData({ ...formData, upper: e.target.value })}
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <Label className="text-foreground/80 font-medium">目标价格</Label>
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        placeholder="0.00"
+                        className="bg-secondary/50 pl-8"
+                        value={formData.target}
+                        onChange={(e) => setFormData({ ...formData, target: e.target.value })}
+                      />
+                      <span className="absolute left-3 top-2.5 text-muted-foreground text-sm">
+                        ¥
+                      </span>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
 
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="active"
-                checked={formData.active}
-                onCheckedChange={(checked) => setFormData({ ...formData, active: checked })}
-              />
-              <Label htmlFor="active">启用规则</Label>
+            {/* Row 3: Notification Channels */}
+            <div className="space-y-3">
+              <Label className="text-foreground/80 font-medium">通知渠道</Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {webhooks.map((wh) => {
+                  const isSelected = formData.notifyChannels?.includes(wh.key);
+                  return (
+                    <div
+                      key={wh.key}
+                      role="button"
+                      tabIndex={wh.configured ? 0 : -1}
+                      onClick={() => wh.configured && handleChannelChange(wh.key, !isSelected)}
+                      onKeyDown={(e) => {
+                        if (wh.configured && (e.key === "Enter" || e.key === " ")) {
+                          e.preventDefault();
+                          handleChannelChange(wh.key, !isSelected);
+                        }
+                      }}
+                      className={`
+                        relative flex items-center space-x-3 p-3 rounded-lg border transition-all cursor-pointer
+                        ${
+                          isSelected
+                            ? "border-primary bg-primary/5 shadow-sm ring-1 ring-primary/20"
+                            : "border-border hover:bg-secondary/50 hover:border-primary/30"
+                        }
+                        ${!wh.configured ? "bg-muted/10 border-dashed cursor-not-allowed" : "focus:outline-none focus:ring-2 focus:ring-primary/50"}
+                      `}
+                    >
+                      <div
+                        className={`
+                          w-4 h-4 rounded-full border flex items-center justify-center transition-colors
+                          ${isSelected ? "bg-primary border-primary" : "border-muted-foreground"}
+                          ${!wh.configured ? "opacity-50" : ""}
+                        `}
+                      >
+                        {isSelected && <div className="w-1.5 h-1.5 bg-background rounded-full" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div
+                          className={`font-medium text-sm truncate ${!wh.configured ? "text-muted-foreground" : "text-foreground"}`}
+                        >
+                          {getTypeLabel(wh.type)}
+                        </div>
+                        {!wh.configured && (
+                          <div className="text-[10px] text-destructive mt-0.5 font-medium">
+                            未配置 Webhook
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+                {webhooks.length === 0 && (
+                  <div className="col-span-full text-center p-4 border border-dashed rounded-lg text-sm text-muted-foreground bg-secondary/20">
+                    暂无可用通知渠道，请先在设置中添加 Webhook。
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Row 4: Throttle & Active */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
+              <div className="space-y-2">
+                <Label className="text-foreground/80 font-medium flex items-center gap-2">
+                  <Clock className="w-3.5 h-3.5" /> 冷却时间 (毫秒)
+                </Label>
+                <Input
+                  type="number"
+                  className="bg-secondary/50"
+                  value={formData.throttleMs}
+                  onChange={(e) => setFormData({ ...formData, throttleMs: e.target.value })}
+                  step={60000}
+                />
+                <p className="text-[10px] text-muted-foreground pl-1">
+                  默认 10 分钟 (600000ms)，避免频繁通知。
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between p-3 border rounded-lg bg-secondary/20">
+                <div className="space-y-0.5">
+                  <Label htmlFor="active" className="text-base font-medium">
+                    启用规则
+                  </Label>
+                  <p className="text-[10px] text-muted-foreground">
+                    关闭后将暂停监控，不再触发通知。
+                  </p>
+                </div>
+                <Switch
+                  id="active"
+                  checked={formData.active}
+                  onCheckedChange={(checked) => setFormData({ ...formData, active: checked })}
+                />
+              </div>
             </div>
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsModalOpen(false)}>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setIsModalOpen(false)} className="h-10">
               取消
             </Button>
-            <Button onClick={handleSave}>保存</Button>
+            <Button
+              onClick={handleSave}
+              className="h-10 bg-primary text-primary-foreground hover:bg-primary/90 shadow-md"
+            >
+              {editingRule ? "保存修改" : "立即创建"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

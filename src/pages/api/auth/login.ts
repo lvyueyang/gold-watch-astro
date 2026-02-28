@@ -1,8 +1,9 @@
 import type { APIRoute } from "astro";
-import { getAdminCredentials } from "../../../lib/kv";
+import { JWT_SECRET_DEFAULT, signToken } from "../../../lib/auth";
+import { getAdminCredentials, getJwtSecret } from "../../../lib/kv";
 
 export const POST: APIRoute = async ({ request, locals, cookies }) => {
-  const env = locals.runtime.env;
+  const env = locals.runtime.env as any; // Cast to any because JWT_SECRET might not be in types yet
   let body;
   try {
     body = (await request.json()) as any;
@@ -24,12 +25,17 @@ export const POST: APIRoute = async ({ request, locals, cookies }) => {
   const validPass = creds.password || "password";
 
   if (username === validUser && password === validPass) {
+    const kvSecret = await getJwtSecret(env);
+    const secret = kvSecret || env.JWT_SECRET || JWT_SECRET_DEFAULT;
+    const token = await signToken({ username }, secret);
+
     // Set cookie
-    cookies.set("goldwatch_auth", "1", {
+    cookies.set("goldwatch_token", token, {
       path: "/",
       httpOnly: true,
       secure: true, // Use true in prod, but localhost might need false? Astro handles this.
       maxAge: 60 * 60 * 24 * 7, // 7 days
+      sameSite: "lax",
     });
 
     return new Response(JSON.stringify({ success: true }), {

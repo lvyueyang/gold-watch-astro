@@ -12,6 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ToastProvider, useToast } from "@/components/ui/toast";
+import { getTypeLabel, getTypeVariant } from "@/lib/webhook-utils";
 import AdminLayout from "./AdminLayout";
 
 interface Webhook {
@@ -46,28 +47,6 @@ const WebhooksContent: React.FC = () => {
   useEffect(() => {
     fetchWebhooks();
   }, [fetchWebhooks]);
-
-  const getTypeLabel = (type: string) => {
-    const typeMap: Record<string, string> = {
-      feishu: "飞书",
-      wecom: "企业微信",
-      dingtalk: "钉钉",
-    };
-    return typeMap[type] || type.toUpperCase();
-  };
-
-  const getTypeVariant = (type: string) => {
-    switch (type) {
-      case "feishu":
-        return "success";
-      case "wecom":
-        return "info";
-      case "dingtalk":
-        return "warning";
-      default:
-        return "default";
-    }
-  };
 
   const getMaskedUrl = (url: string | null) => {
     if (!url) return <span className="text-muted-foreground">-</span>;

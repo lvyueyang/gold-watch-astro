@@ -17,3 +17,7 @@ export async function getAdminCredentials(env: Env) {
   ]);
   return { username, password };
 }
+
+export async function getJwtSecret(env: Env): Promise<string | null> {
+  return await env.KV_CONFIG.get("JWT_SECRET");
+}
