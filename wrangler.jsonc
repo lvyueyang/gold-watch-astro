@@ -28,9 +28,9 @@
       "id": "3d78c6b881c64ff3ae846a35f3f0b7f0"
     }
   ],
-  "triggers": {
-    "crons": ["* * * * *"]
-  }
+  // "triggers": {
+  //   "crons": ["* * * * *"]
+  // }
   /**
    * Smart Placement
    * https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
