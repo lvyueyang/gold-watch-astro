@@ -1,46 +1,46 @@
-# Astro Starter Kit: Basics
+# GoldWatch - Real-time Price Monitor
 
-```sh
-pnpm create astro@latest -- --template basics
-```
+## Setup
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+1. **Install Dependencies**
+   ```bash
+   pnpm install
+   ```
 
-## 🚀 Project Structure
+2. **Configure Cloudflare Resources**
+   - Create a D1 database named `gold-watch-db`.
+   - Create a KV namespace named `KV_CONFIG`.
+   - Update `wrangler.jsonc` with your IDs.
 
-Inside of your Astro project, you'll see the following folders and files:
+3. **Initialize Database**
+   ```bash
+   pnpm wrangler d1 execute gold-watch-db --local --file=docs/sql/schema.sql
+   # For production:
+   # pnpm wrangler d1 execute gold-watch-db --remote --file=docs/sql/schema.sql
+   ```
 
-```text
-/
-├── public/
-│   └── favicon.svg
-├── src
-│   ├── assets
-│   │   └── astro.svg
-│   ├── components
-│   │   └── Welcome.astro
-│   ├── layouts
-│   │   └── Layout.astro
-│   └── pages
-│       └── index.astro
-└── package.json
-```
+4. **Set Secrets (KV)**
+   Run the following commands to set up your admin credentials and webhooks:
+   ```bash
+   # Local Development
+   pnpm wrangler kv:key put ADMIN_USER "admin" --binding=KV_CONFIG --local
+   pnpm wrangler kv:key put ADMIN_PASS "password" --binding=KV_CONFIG --local
+   pnpm wrangler kv:key put WEBHOOK_FEISHU "https://open.feishu.cn/open-apis/bot/v2/hook/..." --binding=KV_CONFIG --local
+   
+   # Production
+   # Add --remote instead of --local
+   ```
 
-To learn more about the folder structure of an Astro project, refer to [our guide on project structure](https://docs.astro.build/en/basics/project-structure/).
+5. **Run Locally**
+   ```bash
+   pnpm dev
+   ```
 
-## 🧞 Commands
+6. **Deploy**
+   ```bash
+   pnpm run deploy
+   ```
 
-All commands are run from the root of the project, from a terminal:
-
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `pnpm install`             | Installs dependencies                            |
-| `pnpm dev`             | Starts local dev server at `localhost:4321`      |
-| `pnpm build`           | Build your production site to `./dist/`          |
-| `pnpm preview`         | Preview your build locally, before deploying     |
-| `pnpm astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `pnpm astro -- --help` | Get help using the Astro CLI                     |
-
-## 👀 Want to learn more?
-
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+## Cron Job
+The system uses Cloudflare Cron Triggers to run logic.
+Currently exposed via `/api/cron` for manual invocation or external scheduling if needed.

@@ -11,11 +11,19 @@
 		"cf-typegen": "wrangler types"
 	},
 	"dependencies": {
+		"@ant-design/icons": "^6.1.0",
 		"@astrojs/cloudflare": "^12.6.12",
-		"astro": "^5.17.1"
+		"@astrojs/react": "^4.4.2",
+		"antd": "^6.3.1",
+		"astro": "^5.17.1",
+		"react": "^19.2.4",
+		"react-dom": "^19.2.4"
 	},
 	"devDependencies": {
+		"@biomejs/biome": "^2.4.4",
 		"@types/node": "^25.3.2",
+		"@types/react": "^19.2.14",
+		"@types/react-dom": "^19.2.3",
 		"wrangler": "^4.69.0"
 	}
 }
