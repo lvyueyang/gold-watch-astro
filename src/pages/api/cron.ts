@@ -1,4 +1,5 @@
 import type { APIRoute } from "astro";
+import { CHANNEL_DINGTALK, CHANNEL_FEISHU, CHANNEL_WECOM } from "../../lib/constants";
 import { getNotifyAdapter } from "../../lib/adapters/notify/registry";
 import { getActiveRules, updateRuleState } from "../../lib/db";
 import { evaluateRule } from "../../lib/engine";
@@ -36,9 +37,9 @@ export const GET: APIRoute = async ({ locals }) => {
         if (webhookUrl) {
           // Infer adapter type from channelId or known prefixes
           let type = channelId;
-          if (channelId.includes("feishu")) type = "feishu";
-          if (channelId.includes("wecom")) type = "wecom";
-          if (channelId.includes("dingtalk")) type = "dingtalk";
+          if (channelId.includes(CHANNEL_FEISHU)) type = CHANNEL_FEISHU;
+          if (channelId.includes(CHANNEL_WECOM)) type = CHANNEL_WECOM;
+          if (channelId.includes(CHANNEL_DINGTALK)) type = CHANNEL_DINGTALK;
 
           const adapter = getNotifyAdapter(type);
           if (adapter) {
