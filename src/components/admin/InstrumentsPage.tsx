@@ -1,17 +1,10 @@
-import type React from "react";
-import { useCallback, useEffect, useState } from "react";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { ToastProvider, useToast } from "@/components/ui/toast";
-import AdminLayout from "./AdminLayout";
+import type React from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { ToastProvider, useToast } from '@/components/ui/toast';
+import AdminLayout from './AdminLayout';
 
 interface Instrument {
   id: string;
@@ -21,27 +14,61 @@ interface Instrument {
   precision: number;
 }
 
+interface PriceData {
+  price: number;
+  ts: number;
+}
+
 const InstrumentsContent: React.FC = () => {
   const [instruments, setInstruments] = useState<Instrument[]>([]);
+  const [prices, setPrices] = useState<Record<string, PriceData>>({});
   const [loading, setLoading] = useState(false);
   const { show } = useToast();
 
   const fetchInstruments = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/instruments");
+      const res = await fetch('/api/instruments');
       const data = await res.json();
       setInstruments(Array.isArray(data) ? data : []);
     } catch (_error) {
-      show({ title: "获取标的失败", variant: "destructive" });
+      show({ title: '获取标的失败', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
   }, [show]);
 
+  const fetchPrices = useCallback(async () => {
+    if (instruments.length === 0) return;
+
+    const newPrices: Record<string, PriceData> = {};
+    await Promise.all(
+      instruments.map(async (inst) => {
+        try {
+          const res = await fetch(`/api/price?instrumentId=${inst.id}`);
+          if (res.ok) {
+            const data = (await res.json()) as PriceData;
+            newPrices[inst.id] = { price: data.price, ts: data.ts };
+          }
+        } catch (e) {
+          console.error(`Failed to fetch price for ${inst.id}`, e);
+        }
+      }),
+    );
+    setPrices((prev) => ({ ...prev, ...newPrices }));
+  }, [instruments]);
+
   useEffect(() => {
     fetchInstruments();
   }, [fetchInstruments]);
+
+  useEffect(() => {
+    if (instruments.length > 0) {
+      fetchPrices();
+      const interval = setInterval(fetchPrices, 10000); // Refresh every 10s
+      return () => clearInterval(interval);
+    }
+  }, [instruments, fetchPrices]);
 
   return (
     <>
@@ -52,7 +79,10 @@ const InstrumentsContent: React.FC = () => {
       {/* Mobile View */}
       <div className="grid grid-cols-1 gap-4 md:hidden">
         {instruments.map((inst) => (
-          <Card key={inst.id} className="shadow-sm">
+          <Card
+            key={inst.id}
+            className="shadow-sm"
+          >
             <CardHeader className="pb-2">
               <div className="flex justify-between items-start">
                 <div>
@@ -67,6 +97,12 @@ const InstrumentsContent: React.FC = () => {
                 <div className="flex justify-between border-b pb-2">
                   <span className="text-muted-foreground">ID</span>
                   <span className="font-mono">{inst.id}</span>
+                </div>
+                <div className="flex justify-between border-b pb-2">
+                  <span className="text-muted-foreground">当前价格</span>
+                  <span className="font-medium text-primary">
+                    {prices[inst.id] ? `¥${prices[inst.id].price}` : '-'}
+                  </span>
                 </div>
                 <div className="flex justify-between pt-1">
                   <span className="text-muted-foreground">精度</span>
@@ -90,6 +126,7 @@ const InstrumentsContent: React.FC = () => {
                 <TableHead>标的 ID</TableHead>
                 <TableHead>名称</TableHead>
                 <TableHead>Symbol</TableHead>
+                <TableHead>当前价格</TableHead>
                 <TableHead>来源适配器</TableHead>
                 <TableHead>精度</TableHead>
               </TableRow>
@@ -100,6 +137,9 @@ const InstrumentsContent: React.FC = () => {
                   <TableCell className="font-medium">{inst.id}</TableCell>
                   <TableCell>{inst.name}</TableCell>
                   <TableCell>{inst.symbol}</TableCell>
+                  <TableCell className="font-mono font-medium">
+                    {prices[inst.id] ? `¥${prices[inst.id].price}` : <span className="text-muted-foreground">-</span>}
+                  </TableCell>
                   <TableCell>
                     <Badge variant="outline">{inst.source}</Badge>
                   </TableCell>
@@ -108,7 +148,10 @@ const InstrumentsContent: React.FC = () => {
               ))}
               {instruments.length === 0 && !loading && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
+                  <TableCell
+                    colSpan={6}
+                    className="text-center h-24 text-muted-foreground"
+                  >
                     暂无标的
                   </TableCell>
                 </TableRow>
