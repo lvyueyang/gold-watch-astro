@@ -1,7 +1,18 @@
 import type React from "react";
 import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -12,6 +23,7 @@ import {
 } from "@/components/ui/table";
 import { ToastProvider, useToast } from "@/components/ui/toast";
 import { getTypeLabel, getTypeVariant } from "@/lib/webhook-utils";
+import { Edit } from "lucide-react";
 import AdminLayout from "./AdminLayout";
 
 interface Webhook {
@@ -25,6 +37,10 @@ const WebhooksContent: React.FC = () => {
   const [webhooks, setWebhooks] = useState<Webhook[]>([]);
   const [loading, setLoading] = useState(false);
   const { show } = useToast();
+
+  const [editingWebhook, setEditingWebhook] = useState<Webhook | null>(null);
+  const [editUrl, setEditUrl] = useState("");
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const fetchWebhooks = useCallback(async () => {
     setLoading(true);
@@ -42,6 +58,35 @@ const WebhooksContent: React.FC = () => {
       setLoading(false);
     }
   }, [show]);
+
+  const handleEdit = (wh: Webhook) => {
+    setEditingWebhook(wh);
+    setEditUrl(wh.url || "");
+    setIsModalOpen(true);
+  };
+
+  const handleSave = async () => {
+    if (!editingWebhook) return;
+
+    try {
+      const res = await fetch("/api/webhooks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: editingWebhook.key, url: editUrl }),
+      });
+
+      if (res.ok) {
+        show({ title: "更新成功", variant: "default" });
+        setIsModalOpen(false);
+        fetchWebhooks();
+      } else {
+        const data = await res.json();
+        show({ title: data.error || "更新失败", variant: "destructive" });
+      }
+    } catch (e) {
+      show({ title: "请求出错", variant: "destructive" });
+    }
+  };
 
   useEffect(() => {
     fetchWebhooks();
@@ -80,6 +125,12 @@ const WebhooksContent: React.FC = () => {
               <div className="text-sm font-mono text-muted-foreground break-all bg-muted p-2 rounded">
                 {wh.url ? wh.url : "未配置 Webhook URL"}
               </div>
+              <div className="mt-4 flex justify-end">
+                <Button variant="outline" size="sm" onClick={() => handleEdit(wh)}>
+                  <Edit className="w-4 h-4 mr-1" />
+                  配置
+                </Button>
+              </div>
             </CardContent>
           </Card>
         ))}
@@ -98,6 +149,7 @@ const WebhooksContent: React.FC = () => {
                 <TableHead>平台类型</TableHead>
                 <TableHead>状态</TableHead>
                 <TableHead>Webhook 地址 (已脱敏)</TableHead>
+                <TableHead className="text-right">操作</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -117,11 +169,16 @@ const WebhooksContent: React.FC = () => {
                   <TableCell className="font-mono text-xs">
                     {wh.url ? `${wh.url.substring(0, 30)}...` : "-"}
                   </TableCell>
+                  <TableCell className="text-right">
+                    <Button variant="ghost" size="sm" onClick={() => handleEdit(wh)}>
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
               {webhooks.length === 0 && !loading && (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center h-24 text-muted-foreground">
+                  <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
                     暂无数据
                   </TableCell>
                 </TableRow>
@@ -130,6 +187,35 @@ const WebhooksContent: React.FC = () => {
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>配置通知渠道</DialogTitle>
+            <DialogDescription>
+              配置 {editingWebhook ? getTypeLabel(editingWebhook.type) : ""} ({editingWebhook?.key})
+              的 Webhook 地址。
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="space-y-2">
+              <Label htmlFor="webhook-url">Webhook URL</Label>
+              <Input
+                id="webhook-url"
+                placeholder="https://..."
+                value={editUrl}
+                onChange={(e) => setEditUrl(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsModalOpen(false)}>
+              取消
+            </Button>
+            <Button onClick={handleSave}>保存</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
