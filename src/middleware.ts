@@ -7,6 +7,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
   // Protect /admin and sensitive API routes
   if (url.pathname.startsWith("/admin") || url.pathname.startsWith("/api/rules")) {
+    // Explicitly allow /api/cron to bypass auth
+    if (url.pathname === "/api/cron") {
+      return next();
+    }
+
     const token = cookies.get("goldwatch_token")?.value;
 
     let isAuthenticated = false;

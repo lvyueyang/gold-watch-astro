@@ -1,9 +1,11 @@
 import type React from 'react';
 import { useCallback, useEffect, useState } from 'react';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ToastProvider, useToast } from '@/components/ui/toast';
+import { RefreshCw } from 'lucide-react';
 import AdminLayout from './AdminLayout';
 
 interface Instrument {
@@ -23,7 +25,26 @@ const InstrumentsContent: React.FC = () => {
   const [instruments, setInstruments] = useState<Instrument[]>([]);
   const [prices, setPrices] = useState<Record<string, PriceData>>({});
   const [loading, setLoading] = useState(false);
+  const [cronLoading, setCronLoading] = useState(false);
   const { show } = useToast();
+
+  const handleCron = async () => {
+    setCronLoading(true);
+    try {
+      const res = await fetch('/api/cron');
+      if (res.ok) {
+        show({ title: '手动触发监控成功', variant: 'default' });
+        // Refresh prices after cron
+        fetchPrices();
+      } else {
+        show({ title: '触发失败', variant: 'destructive' });
+      }
+    } catch (e) {
+      show({ title: '请求出错', variant: 'destructive' });
+    } finally {
+      setCronLoading(false);
+    }
+  };
 
   const fetchInstruments = useCallback(async () => {
     setLoading(true);
@@ -74,6 +95,16 @@ const InstrumentsContent: React.FC = () => {
     <>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight">标的管理</h1>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleCron}
+          disabled={cronLoading}
+          className="flex items-center gap-2"
+        >
+          <RefreshCw className={`w-4 h-4 ${cronLoading ? 'animate-spin' : ''}`} />
+          <span className="hidden sm:inline">立即检测</span>
+        </Button>
       </div>
 
       {/* Mobile View */}
