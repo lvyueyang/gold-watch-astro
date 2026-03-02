@@ -6,7 +6,17 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { Activity, Bell, Clock, Edit, Plus, RotateCcw, Target, Trash2 } from "lucide-react";
+import {
+  Activity,
+  Bell,
+  CircleHelp,
+  Clock,
+  Edit,
+  Plus,
+  RotateCcw,
+  Target,
+  Trash2,
+} from "lucide-react";
 import type React from "react";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -40,6 +50,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ToastProvider, useToast } from "@/components/ui/toast";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { getTypeLabel } from "@/lib/webhook-utils";
 import AdminLayout from "./AdminLayout";
 
@@ -52,6 +63,11 @@ interface RuleParams {
 interface RuleNotify {
   channels: string[];
   throttleMs: number;
+}
+
+interface PriceData {
+  price: number;
+  ts: number;
 }
 
 interface Rule {
@@ -75,6 +91,55 @@ interface Webhook {
   type: string;
   configured: boolean;
 }
+
+const ruleTypeLabels: Record<string, string> = {
+  touch: "触达",
+  cross_up: "上涨至",
+  cross_down: "下跌至",
+  range: "区间",
+  pct_change: "涨跌幅",
+};
+
+const formatRuleTarget = (rule: Rule): string => {
+  if (rule.type === "range") {
+    const lower = rule.params.lower;
+    const upper = rule.params.upper;
+    if (lower !== undefined && upper !== undefined) return `${lower} - ${upper}`;
+    if (lower !== undefined) return `>= ${lower}`;
+    if (upper !== undefined) return `<= ${upper}`;
+    return "-";
+  }
+
+  if (rule.params.target !== undefined) return String(rule.params.target);
+
+  return "-";
+};
+
+const InstrumentPriceHint: React.FC<{ instrumentId?: string }> = ({ instrumentId }) => {
+  const { data, isLoading } = useQuery<PriceData | null>({
+    queryKey: ["price", instrumentId],
+    queryFn: async () => {
+      if (!instrumentId) return null;
+      const res = await fetch(`/api/price?instrumentId=${instrumentId}`);
+      if (!res.ok) return null;
+      return (await res.json()) as PriceData;
+    },
+    enabled: Boolean(instrumentId),
+    refetchInterval: 10000,
+  });
+
+  if (!instrumentId) {
+    return <div className="text-xs text-muted-foreground">当前价格: -</div>;
+  }
+
+  if (isLoading) {
+    return <div className="text-xs text-muted-foreground">当前价格: 获取中</div>;
+  }
+
+  return (
+    <div className="text-xs text-muted-foreground">当前价格: {data ? `¥${data.price}` : "-"}</div>
+  );
+};
 
 const queryClient = new QueryClient();
 
@@ -290,9 +355,10 @@ const RulesContent: React.FC = () => {
                 <span>
                   类型:{" "}
                   <Badge variant="outline" className="ml-1">
-                    {rule.type}
+                    {ruleTypeLabels[rule.type] || rule.type}
                   </Badge>
                 </span>
+                <span>目标: {formatRuleTarget(rule)}</span>
               </div>
               <div className="flex gap-2 justify-end">
                 <Button variant="outline" size="sm" onClick={() => handleEdit(rule)}>
@@ -322,6 +388,7 @@ const RulesContent: React.FC = () => {
                 <TableHead>规则名称</TableHead>
                 <TableHead>标的</TableHead>
                 <TableHead>类型</TableHead>
+                <TableHead>目标/区间</TableHead>
                 <TableHead>状态</TableHead>
                 <TableHead className="text-right">操作</TableHead>
               </TableRow>
@@ -334,8 +401,9 @@ const RulesContent: React.FC = () => {
                     {instruments.find((i) => i.id === rule.instrumentId)?.name || rule.instrumentId}
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline">{rule.type}</Badge>
+                    <Badge variant="outline">{ruleTypeLabels[rule.type] || rule.type}</Badge>
                   </TableCell>
+                  <TableCell className="font-mono">{formatRuleTarget(rule)}</TableCell>
                   <TableCell>
                     <Badge variant={rule.active ? "default" : "secondary"}>
                       {rule.active ? "启用" : "禁用"}
@@ -361,7 +429,7 @@ const RulesContent: React.FC = () => {
               ))}
               {rules.length === 0 && !rulesLoading && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">
                     暂无规则
                   </TableCell>
                 </TableRow>
@@ -431,6 +499,11 @@ const RulesContent: React.FC = () => {
                         ))}
                       </SelectContent>
                     </Select>
+                    <form.Subscribe selector={(state) => [state.values.instrumentId]}>
+                      {([instrumentId]) => (
+                        <InstrumentPriceHint instrumentId={instrumentId || undefined} />
+                      )}
+                    </form.Subscribe>
                   </div>
                 )}
               </form.Field>
@@ -441,9 +514,31 @@ const RulesContent: React.FC = () => {
               <form.Field name="type">
                 {(field) => (
                   <div className="space-y-2">
-                    <Label htmlFor="type" className="text-foreground/80 font-medium">
-                      触发类型
-                    </Label>
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="type" className="text-foreground/80 font-medium">
+                        触发类型
+                      </Label>
+                      <TooltipProvider delayDuration={150}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              type="button"
+                              className="text-muted-foreground hover:text-foreground"
+                            >
+                              <CircleHelp className="h-4 w-4" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" align="start" className="max-w-[260px]">
+                            <div className="space-y-1">
+                              <div>触达：价格在目标价±0.05%内触发。</div>
+                              <div>上涨至：从低于目标价上穿时触发。</div>
+                              <div>下跌至：从高于目标价下穿时触发。</div>
+                              <div>区间：价格落在上下限之间触发。</div>
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
                     <Select
                       value={field.state.value}
                       onValueChange={(val) => field.handleChange(val)}
@@ -461,13 +556,13 @@ const RulesContent: React.FC = () => {
                         <SelectItem value="cross_up">
                           <div className="flex items-center gap-2">
                             <Activity className="w-4 h-4 text-green-500" />
-                            <span>上穿 (Cross Up)</span>
+                            <span>上涨至 (Cross Up)</span>
                           </div>
                         </SelectItem>
                         <SelectItem value="cross_down">
                           <div className="flex items-center gap-2">
                             <Activity className="w-4 h-4 text-red-500" />
-                            <span>下穿 (Cross Down)</span>
+                            <span>下跌至 (Cross Down)</span>
                           </div>
                         </SelectItem>
                         <SelectItem value="range">
