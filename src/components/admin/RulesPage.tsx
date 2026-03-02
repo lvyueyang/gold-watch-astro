@@ -1,17 +1,12 @@
-import { useForm } from "@tanstack/react-form";
-import {
-  QueryClient,
-  QueryClientProvider,
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
-import { Activity, Bell, Clock, Edit, Plus, Target, Trash2 } from "lucide-react";
-import type React from "react";
-import { useState } from "react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useForm } from '@tanstack/react-form';
+import { QueryClient, QueryClientProvider, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Activity, Bell, Clock, Edit, Plus, RotateCcw, Target, Trash2 } from 'lucide-react';
+import type React from 'react';
+import { useState } from 'react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import {
   Dialog,
   DialogContent,
@@ -19,28 +14,15 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { ToastProvider, useToast } from "@/components/ui/toast";
-import { getTypeLabel } from "@/lib/webhook-utils";
-import AdminLayout from "./AdminLayout";
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { ToastProvider, useToast } from '@/components/ui/toast';
+import { getTypeLabel } from '@/lib/webhook-utils';
+import AdminLayout from './AdminLayout';
 
 interface RuleParams {
   target?: number;
@@ -81,29 +63,35 @@ const RulesContent: React.FC = () => {
   const { show } = useToast();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<Rule | null>(null);
+
+  // Dialog States
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedRuleId, setSelectedRuleId] = useState<string | null>(null);
+
   const queryClient = useQueryClient();
 
   // Queries
   const { data: rules = [], isLoading: rulesLoading } = useQuery<Rule[]>({
-    queryKey: ["rules"],
+    queryKey: ['rules'],
     queryFn: async () => {
-      const res = await fetch("/api/rules");
+      const res = await fetch('/api/rules');
       return await res.json();
     },
   });
 
   const { data: instruments = [] } = useQuery<Instrument[]>({
-    queryKey: ["instruments"],
+    queryKey: ['instruments'],
     queryFn: async () => {
-      const res = await fetch("/api/instruments");
+      const res = await fetch('/api/instruments');
       return await res.json();
     },
   });
 
   const { data: webhooks = [] } = useQuery<Webhook[]>({
-    queryKey: ["webhooks"],
+    queryKey: ['webhooks'],
     queryFn: async () => {
-      const res = await fetch("/api/webhooks");
+      const res = await fetch('/api/webhooks');
       return await res.json();
     },
   });
@@ -111,61 +99,74 @@ const RulesContent: React.FC = () => {
   // Mutations
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      await fetch(`/api/rules/${id}`, { method: "DELETE" });
+      await fetch(`/api/rules/${id}`, { method: 'DELETE' });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["rules"] });
-      show({ title: "规则已删除", variant: "success" });
+      queryClient.invalidateQueries({ queryKey: ['rules'] });
+      show({ title: '规则已删除', variant: 'success' });
     },
     onError: () => {
-      show({ title: "删除规则失败", variant: "destructive" });
+      show({ title: '删除规则失败', variant: 'destructive' });
+    },
+  });
+
+  const resetMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await fetch(`/api/rules/${id}/reset`, { method: 'POST' });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['rules'] });
+      show({ title: '规则状态已重置', variant: 'success' });
+    },
+    onError: () => {
+      show({ title: '重置失败', variant: 'destructive' });
     },
   });
 
   const saveMutation = useMutation({
-    mutationFn: async (data: Omit<Rule, "id"> & { id?: string }) => {
+    mutationFn: async (data: Omit<Rule, 'id'> & { id?: string }) => {
       const { id, ...payload } = data;
       if (id) {
         await fetch(`/api/rules/${id}`, {
-          method: "PATCH",
+          method: 'PATCH',
           body: JSON.stringify(payload),
         });
       } else {
-        await fetch("/api/rules", {
-          method: "POST",
+        await fetch('/api/rules', {
+          method: 'POST',
           body: JSON.stringify(payload),
         });
       }
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["rules"] });
+      queryClient.invalidateQueries({ queryKey: ['rules'] });
       show({
-        title: variables.id ? "规则更新成功" : "规则创建成功",
-        variant: "success",
+        title: variables.id ? '规则更新成功' : '规则创建成功',
+        variant: 'success',
       });
       setIsModalOpen(false);
     },
     onError: () => {
-      show({ title: "操作失败", variant: "destructive" });
+      show({ title: '操作失败', variant: 'destructive' });
     },
   });
 
   // Form
   const form = useForm({
     defaultValues: {
-      name: "",
-      instrumentId: "",
-      type: "touch",
+      name: '',
+      instrumentId: '',
+      type: 'touch',
       active: true,
-      target: "",
-      lower: "",
-      upper: "",
+      target: '',
+      lower: '',
+      upper: '',
       notifyChannels: [] as string[],
       throttleMs: 600000,
     },
     onSubmit: async ({ value }) => {
       let params: RuleParams = {};
-      if (value.type === "range") {
+      if (value.type === 'range') {
         params = { lower: Number(value.lower), upper: Number(value.upper) };
       } else {
         params = { target: Number(value.target) };
@@ -195,7 +196,7 @@ const RulesContent: React.FC = () => {
     form.reset();
     // Set default instrument if available
     if (instruments.length > 0) {
-      form.setFieldValue("instrumentId", instruments[0].id);
+      form.setFieldValue('instrumentId', instruments[0].id);
     }
     setIsModalOpen(true);
   };
@@ -204,22 +205,39 @@ const RulesContent: React.FC = () => {
     setEditingRule(record);
     form.reset();
     // Populate form
-    form.setFieldValue("name", record.name);
-    form.setFieldValue("instrumentId", record.instrumentId);
-    form.setFieldValue("type", record.type);
-    form.setFieldValue("active", record.active);
-    form.setFieldValue("target", String(record.params.target || ""));
-    form.setFieldValue("lower", String(record.params.lower || ""));
-    form.setFieldValue("upper", String(record.params.upper || ""));
-    form.setFieldValue("notifyChannels", record.notify.channels || []);
-    form.setFieldValue("throttleMs", record.notify.throttleMs || 600000);
+    form.setFieldValue('name', record.name);
+    form.setFieldValue('instrumentId', record.instrumentId);
+    form.setFieldValue('type', record.type);
+    form.setFieldValue('active', record.active);
+    form.setFieldValue('target', String(record.params.target || ''));
+    form.setFieldValue('lower', String(record.params.lower || ''));
+    form.setFieldValue('upper', String(record.params.upper || ''));
+    form.setFieldValue('notifyChannels', record.notify.channels || []);
+    form.setFieldValue('throttleMs', record.notify.throttleMs || 600000);
 
     setIsModalOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("确定要删除吗？")) return;
-    deleteMutation.mutate(id);
+  const handleReset = (id: string) => {
+    setSelectedRuleId(id);
+    setResetDialogOpen(true);
+  };
+
+  const confirmReset = () => {
+    if (selectedRuleId) {
+      resetMutation.mutate(selectedRuleId);
+    }
+  };
+
+  const handleDelete = (id: string) => {
+    setSelectedRuleId(id);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (selectedRuleId) {
+      deleteMutation.mutate(selectedRuleId);
+    }
   };
 
   return (
@@ -234,7 +252,10 @@ const RulesContent: React.FC = () => {
       {/* Mobile View */}
       <div className="grid grid-cols-1 gap-4 md:hidden">
         {rules.map((rule) => (
-          <Card key={rule.id} className="shadow-sm">
+          <Card
+            key={rule.id}
+            className="shadow-sm"
+          >
             <CardHeader className="pb-2">
               <div className="flex justify-between items-start">
                 <div>
@@ -243,34 +264,48 @@ const RulesContent: React.FC = () => {
                     {instruments.find((i) => i.id === rule.instrumentId)?.name || rule.instrumentId}
                   </CardDescription>
                 </div>
-                <Badge variant={rule.active ? "default" : "secondary"}>
-                  {rule.active ? "启用" : "禁用"}
-                </Badge>
+                <Badge variant={rule.active ? 'default' : 'secondary'}>{rule.active ? '启用' : '禁用'}</Badge>
               </div>
             </CardHeader>
             <CardContent>
               <div className="flex justify-between items-center text-sm text-muted-foreground mb-4">
                 <span>
-                  类型:{" "}
-                  <Badge variant="outline" className="ml-1">
+                  类型:{' '}
+                  <Badge
+                    variant="outline"
+                    className="ml-1"
+                  >
                     {rule.type}
                   </Badge>
                 </span>
               </div>
               <div className="flex gap-2 justify-end">
-                <Button variant="outline" size="sm" onClick={() => handleEdit(rule)}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleEdit(rule)}
+                >
                   <Edit className="h-4 w-4 mr-1" /> 编辑
                 </Button>
-                <Button variant="destructive" size="sm" onClick={() => handleDelete(rule.id)}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleReset(rule.id)}
+                >
+                  <RotateCcw className="h-4 w-4 mr-1" /> 重置
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => handleDelete(rule.id)}
+                >
                   <Trash2 className="h-4 w-4 mr-1" /> 删除
                 </Button>
               </div>
             </CardContent>
           </Card>
         ))}
-        {rules.length === 0 && !rulesLoading && (
-          <div className="text-center py-10 text-muted-foreground">暂无规则</div>
-        )}
+        {rules.length === 0 && !rulesLoading && <div className="text-center py-10 text-muted-foreground">暂无规则</div>}
       </div>
 
       {/* Desktop View */}
@@ -297,13 +332,22 @@ const RulesContent: React.FC = () => {
                     <Badge variant="outline">{rule.type}</Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={rule.active ? "default" : "secondary"}>
-                      {rule.active ? "启用" : "禁用"}
-                    </Badge>
+                    <Badge variant={rule.active ? 'default' : 'secondary'}>{rule.active ? '启用' : '禁用'}</Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" onClick={() => handleEdit(rule)}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleEdit(rule)}
+                    >
                       <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleReset(rule.id)}
+                    >
+                      <RotateCcw className="h-4 w-4" />
                     </Button>
                     <Button
                       variant="ghost"
@@ -318,7 +362,10 @@ const RulesContent: React.FC = () => {
               ))}
               {rules.length === 0 && !rulesLoading && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
+                  <TableCell
+                    colSpan={5}
+                    className="text-center h-24 text-muted-foreground"
+                  >
                     暂无规则
                   </TableCell>
                 </TableRow>
@@ -328,7 +375,10 @@ const RulesContent: React.FC = () => {
         </CardContent>
       </Card>
 
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+      <Dialog
+        open={isModalOpen}
+        onOpenChange={setIsModalOpen}
+      >
         <DialogContent className="sm:max-w-[600px] border-primary/20 shadow-2xl bg-card">
           <DialogHeader>
             <div className="flex items-center gap-3">
@@ -336,9 +386,7 @@ const RulesContent: React.FC = () => {
                 <Bell className="w-5 h-5" />
               </div>
               <div>
-                <DialogTitle className="text-xl">
-                  {editingRule ? "编辑规则" : "新建规则"}
-                </DialogTitle>
+                <DialogTitle className="text-xl">{editingRule ? '编辑规则' : '新建规则'}</DialogTitle>
                 <DialogDescription className="text-muted-foreground mt-1">
                   配置价格监控规则，当触发条件时发送通知。
                 </DialogDescription>
@@ -352,7 +400,10 @@ const RulesContent: React.FC = () => {
               <form.Field name="name">
                 {(field) => (
                   <div className="space-y-2">
-                    <Label htmlFor="name" className="text-foreground/80 font-medium">
+                    <Label
+                      htmlFor="name"
+                      className="text-foreground/80 font-medium"
+                    >
                       规则名称
                     </Label>
                     <Input
@@ -369,7 +420,10 @@ const RulesContent: React.FC = () => {
               <form.Field name="instrumentId">
                 {(field) => (
                   <div className="space-y-2">
-                    <Label htmlFor="instrument" className="text-foreground/80 font-medium">
+                    <Label
+                      htmlFor="instrument"
+                      className="text-foreground/80 font-medium"
+                    >
                       监控标的
                     </Label>
                     <Select
@@ -381,8 +435,11 @@ const RulesContent: React.FC = () => {
                       </SelectTrigger>
                       <SelectContent>
                         {instruments.map((inst) => (
-                          <SelectItem key={inst.id} value={inst.id}>
-                            <span className="font-medium text-foreground">{inst.name}</span>{" "}
+                          <SelectItem
+                            key={inst.id}
+                            value={inst.id}
+                          >
+                            <span className="font-medium text-foreground">{inst.name}</span>{' '}
                             <span className="text-muted-foreground text-xs ml-1">({inst.id})</span>
                           </SelectItem>
                         ))}
@@ -398,7 +455,10 @@ const RulesContent: React.FC = () => {
               <form.Field name="type">
                 {(field) => (
                   <div className="space-y-2">
-                    <Label htmlFor="type" className="text-foreground/80 font-medium">
+                    <Label
+                      htmlFor="type"
+                      className="text-foreground/80 font-medium"
+                    >
                       触发类型
                     </Label>
                     <Select
@@ -442,7 +502,7 @@ const RulesContent: React.FC = () => {
               <form.Subscribe selector={(state) => [state.values.type]}>
                 {([type]) => (
                   <div className="space-y-2">
-                    {type === "range" ? (
+                    {type === 'range' ? (
                       <>
                         <Label className="text-foreground/80 font-medium">价格区间</Label>
                         <div className="flex items-center gap-2">
@@ -486,9 +546,7 @@ const RulesContent: React.FC = () => {
                               />
                             )}
                           </form.Field>
-                          <span className="absolute left-3 top-2.5 text-muted-foreground text-sm">
-                            ¥
-                          </span>
+                          <span className="absolute left-3 top-2.5 text-muted-foreground text-sm">¥</span>
                         </div>
                       </>
                     )}
@@ -523,33 +581,29 @@ const RulesContent: React.FC = () => {
                               relative flex items-center space-x-3 p-3 rounded-lg border transition-all cursor-pointer text-left
                               ${
                                 isSelected
-                                  ? "border-primary bg-primary/5 shadow-sm ring-1 ring-primary/20"
-                                  : "border-border hover:bg-secondary/50 hover:border-primary/30"
+                                  ? 'border-primary bg-primary/5 shadow-sm ring-1 ring-primary/20'
+                                  : 'border-border hover:bg-secondary/50 hover:border-primary/30'
                               }
-                              ${!wh.configured ? "bg-muted/10 border-dashed cursor-not-allowed" : "focus:outline-none focus:ring-2 focus:ring-primary/50"}
+                              ${!wh.configured ? 'bg-muted/10 border-dashed cursor-not-allowed' : 'focus:outline-none focus:ring-2 focus:ring-primary/50'}
                             `}
                           >
                             <div
                               className={`
                                 w-4 h-4 rounded-full border flex items-center justify-center transition-colors
-                                ${isSelected ? "bg-primary border-primary" : "border-muted-foreground"}
-                                ${!wh.configured ? "opacity-50" : ""}
+                                ${isSelected ? 'bg-primary border-primary' : 'border-muted-foreground'}
+                                ${!wh.configured ? 'opacity-50' : ''}
                               `}
                             >
-                              {isSelected && (
-                                <div className="w-1.5 h-1.5 bg-background rounded-full" />
-                              )}
+                              {isSelected && <div className="w-1.5 h-1.5 bg-background rounded-full" />}
                             </div>
                             <div className="flex-1 min-w-0">
                               <div
-                                className={`font-medium text-sm truncate ${!wh.configured ? "text-muted-foreground" : "text-foreground"}`}
+                                className={`font-medium text-sm truncate ${!wh.configured ? 'text-muted-foreground' : 'text-foreground'}`}
                               >
                                 {getTypeLabel(wh.type)}
                               </div>
                               {!wh.configured && (
-                                <div className="text-[10px] text-destructive mt-0.5 font-medium">
-                                  未配置 Webhook
-                                </div>
+                                <div className="text-[10px] text-destructive mt-0.5 font-medium">未配置 Webhook</div>
                               )}
                             </div>
                           </button>
@@ -581,21 +635,20 @@ const RulesContent: React.FC = () => {
                       onChange={(e) => field.handleChange(Number(e.target.value))}
                       step={60000}
                     />
-                    <p className="text-[10px] text-muted-foreground pl-1">
-                      默认 10 分钟 (600000ms)，避免频繁通知。
-                    </p>
+                    <p className="text-[10px] text-muted-foreground pl-1">默认 10 分钟 (600000ms)，避免频繁通知。</p>
                   </div>
                 )}
               </form.Field>
 
               <div className="flex items-center justify-between p-3 border rounded-lg bg-secondary/20">
                 <div className="space-y-0.5">
-                  <Label htmlFor="active" className="text-base font-medium">
+                  <Label
+                    htmlFor="active"
+                    className="text-base font-medium"
+                  >
                     启用规则
                   </Label>
-                  <p className="text-[10px] text-muted-foreground">
-                    关闭后将暂停监控，不再触发通知。
-                  </p>
+                  <p className="text-[10px] text-muted-foreground">关闭后将暂停监控，不再触发通知。</p>
                 </div>
                 <form.Field name="active">
                   {(field) => (
@@ -611,7 +664,11 @@ const RulesContent: React.FC = () => {
           </div>
 
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setIsModalOpen(false)} className="h-10">
+            <Button
+              variant="outline"
+              onClick={() => setIsModalOpen(false)}
+              className="h-10"
+            >
               取消
             </Button>
             <Button
@@ -620,11 +677,30 @@ const RulesContent: React.FC = () => {
               }}
               className="h-10 bg-primary text-primary-foreground hover:bg-primary/90 shadow-md"
             >
-              {editingRule ? "保存修改" : "立即创建"}
+              {editingRule ? '保存修改' : '立即创建'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={resetDialogOpen}
+        onOpenChange={setResetDialogOpen}
+        title="确认重置状态？"
+        description="这将清除该规则的冷却时间和上次触发记录，可能会立即触发新的通知。"
+        onConfirm={confirmReset}
+        confirmText="确认重置"
+      />
+
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="确认删除规则？"
+        description="此操作无法撤销，该规则将被永久删除。"
+        onConfirm={confirmDelete}
+        confirmText="确认删除"
+        variant="destructive"
+      />
     </>
   );
 };

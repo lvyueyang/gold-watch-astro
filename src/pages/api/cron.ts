@@ -1,10 +1,10 @@
-import type { APIRoute } from "astro";
-import { CHANNEL_DINGTALK, CHANNEL_FEISHU, CHANNEL_WECOM } from "../../lib/constants";
-import { getNotifyAdapter } from "../../lib/adapters/notify/registry";
-import { getActiveRules, updateRuleState } from "../../lib/db";
-import { evaluateRule } from "../../lib/engine";
-import { getWebhookUrl } from "../../lib/kv";
-import { fetchPrice } from "../../lib/price";
+import type { APIRoute } from 'astro';
+import { CHANNEL_DINGTALK, CHANNEL_FEISHU, CHANNEL_WECOM } from '../../lib/constants';
+import { getNotifyAdapter } from '../../lib/adapters/notify/registry';
+import { getActiveRules, updateRuleState } from '../../lib/db';
+import { evaluateRule } from '../../lib/engine';
+import { getWebhookUrl } from '../../lib/kv';
+import { fetchPrice, getInstrumentName } from '../../lib/price';
 
 export const GET: APIRoute = async ({ locals }) => {
   const env = locals.runtime.env;
@@ -46,9 +46,9 @@ export const GET: APIRoute = async ({ locals }) => {
             try {
               // Convert fields values to strings for display
               const fields: Record<string, string | number> = {
-                标的: rule.instrumentId,
+                标的: `${getInstrumentName(rule.instrumentId)} (${rule.instrumentId})`,
                 价格: tick.price,
-                时间: new Date(tick.ts).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" }),
+                时间: new Date(tick.ts).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }),
                 规则: `${rule.type} ${JSON.stringify(rule.params)}`,
               };
 
@@ -64,10 +64,10 @@ export const GET: APIRoute = async ({ locals }) => {
             // Fallback to simple text if no adapter found
             try {
               await fetch(webhookUrl, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                  msg_type: "text",
+                  msg_type: 'text',
                   content: {
                     text: `[GoldWatch] ${rule.name} Triggered! Price: ${tick.price}`,
                   },
@@ -90,6 +90,6 @@ export const GET: APIRoute = async ({ locals }) => {
   }
 
   return new Response(JSON.stringify({ success: true, results }), {
-    headers: { "Content-Type": "application/json" },
+    headers: { 'Content-Type': 'application/json' },
   });
 };

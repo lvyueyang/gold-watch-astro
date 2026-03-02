@@ -10,3 +10,8 @@ export async function fetchPrice(instrumentId: string): Promise<PriceTick | null
 
   return await adapter.fetchPrice(instrumentId);
 }
+
+export function getInstrumentName(instrumentId: string): string {
+  const adapter = getSourceAdapter(instrumentId);
+  return adapter ? adapter.getInstrumentName(instrumentId) : instrumentId;
+}

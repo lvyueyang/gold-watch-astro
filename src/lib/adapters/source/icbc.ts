@@ -9,6 +9,10 @@ export class ICBCAdapter implements SourceAdapter {
     return instrumentId === "XAU-CN";
   }
 
+  getInstrumentName(instrumentId: string): string {
+    return instrumentId === "XAU-CN" ? "工行积存金" : instrumentId;
+  }
+
   async fetchPrice(instrumentId: string): Promise<PriceTick | null> {
     if (!this.supports(instrumentId)) return null;
 
