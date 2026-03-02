@@ -4,7 +4,7 @@ export class DingTalkAdapter implements NotifyAdapter {
   id = "dingtalk";
   name = "钉钉";
 
-  async send(env: Env, webhookUrl: string, message: NotificationMessage): Promise<void> {
+  async send(_env: Env, webhookUrl: string, message: NotificationMessage): Promise<void> {
     const payload = {
       msgtype: "markdown",
       markdown: {

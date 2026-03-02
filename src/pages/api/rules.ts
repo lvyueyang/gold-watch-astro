@@ -13,7 +13,14 @@ export const GET: APIRoute = async ({ locals }) => {
 export const POST: APIRoute = async ({ request, locals }) => {
   const env = locals.runtime.env;
   try {
-    const data = (await request.json()) as any;
+    const data = (await request.json()) as {
+      instrumentId?: string;
+      name?: string;
+      type?: Rule["type"];
+      params?: Rule["params"];
+      notify?: Rule["notify"];
+      active?: boolean;
+    };
 
     // Validate data
     if (!data.instrumentId || !data.name || !data.type) {
@@ -39,7 +46,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
       status: 201,
       headers: { "Content-Type": "application/json" },
     });
-  } catch (e: any) {
-    return new Response(JSON.stringify({ error: e.message }), { status: 500 });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Unknown error";
+    return new Response(JSON.stringify({ error: message }), { status: 500 });
   }
 };

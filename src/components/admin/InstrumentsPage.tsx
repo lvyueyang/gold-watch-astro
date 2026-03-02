@@ -1,12 +1,19 @@
-import type React from 'react';
-import { useCallback, useEffect, useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ToastProvider, useToast } from '@/components/ui/toast';
-import { RefreshCw } from 'lucide-react';
-import AdminLayout from './AdminLayout';
+import { RefreshCw } from "lucide-react";
+import type React from "react";
+import { useCallback, useEffect, useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { ToastProvider, useToast } from "@/components/ui/toast";
+import AdminLayout from "./AdminLayout";
 
 interface Instrument {
   id: string;
@@ -31,16 +38,16 @@ const InstrumentsContent: React.FC = () => {
   const handleCron = async () => {
     setCronLoading(true);
     try {
-      const res = await fetch('/api/cron');
+      const res = await fetch("/api/cron");
       if (res.ok) {
-        show({ title: '手动触发监控成功', variant: 'default' });
+        show({ title: "手动触发监控成功", variant: "default" });
         // Refresh prices after cron
         fetchPrices();
       } else {
-        show({ title: '触发失败', variant: 'destructive' });
+        show({ title: "触发失败", variant: "destructive" });
       }
-    } catch (e) {
-      show({ title: '请求出错', variant: 'destructive' });
+    } catch (_e) {
+      show({ title: "请求出错", variant: "destructive" });
     } finally {
       setCronLoading(false);
     }
@@ -49,11 +56,11 @@ const InstrumentsContent: React.FC = () => {
   const fetchInstruments = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/instruments');
+      const res = await fetch("/api/instruments");
       const data = await res.json();
       setInstruments(Array.isArray(data) ? data : []);
     } catch (_error) {
-      show({ title: '获取标的失败', variant: 'destructive' });
+      show({ title: "获取标的失败", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -102,7 +109,7 @@ const InstrumentsContent: React.FC = () => {
           disabled={cronLoading}
           className="flex items-center gap-2"
         >
-          <RefreshCw className={`w-4 h-4 ${cronLoading ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`w-4 h-4 ${cronLoading ? "animate-spin" : ""}`} />
           <span className="hidden sm:inline">立即检测</span>
         </Button>
       </div>
@@ -110,10 +117,7 @@ const InstrumentsContent: React.FC = () => {
       {/* Mobile View */}
       <div className="grid grid-cols-1 gap-4 md:hidden">
         {instruments.map((inst) => (
-          <Card
-            key={inst.id}
-            className="shadow-sm"
-          >
+          <Card key={inst.id} className="shadow-sm">
             <CardHeader className="pb-2">
               <div className="flex justify-between items-start">
                 <div>
@@ -132,7 +136,7 @@ const InstrumentsContent: React.FC = () => {
                 <div className="flex justify-between border-b pb-2">
                   <span className="text-muted-foreground">当前价格</span>
                   <span className="font-medium text-primary">
-                    {prices[inst.id] ? `¥${prices[inst.id].price}` : '-'}
+                    {prices[inst.id] ? `¥${prices[inst.id].price}` : "-"}
                   </span>
                 </div>
                 <div className="flex justify-between pt-1">
@@ -169,7 +173,11 @@ const InstrumentsContent: React.FC = () => {
                   <TableCell>{inst.name}</TableCell>
                   <TableCell>{inst.symbol}</TableCell>
                   <TableCell className="font-mono font-medium">
-                    {prices[inst.id] ? `¥${prices[inst.id].price}` : <span className="text-muted-foreground">-</span>}
+                    {prices[inst.id] ? (
+                      `¥${prices[inst.id].price}`
+                    ) : (
+                      <span className="text-muted-foreground">-</span>
+                    )}
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline">{inst.source}</Badge>
@@ -179,10 +187,7 @@ const InstrumentsContent: React.FC = () => {
               ))}
               {instruments.length === 0 && !loading && (
                 <TableRow>
-                  <TableCell
-                    colSpan={6}
-                    className="text-center h-24 text-muted-foreground"
-                  >
+                  <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">
                     暂无标的
                   </TableCell>
                 </TableRow>

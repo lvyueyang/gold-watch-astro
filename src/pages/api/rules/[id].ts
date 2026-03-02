@@ -1,5 +1,6 @@
 import type { APIRoute } from "astro";
 import { deleteRule, getRule, updateRule } from "../../../lib/db";
+import type { Rule } from "../../../lib/types";
 
 export const GET: APIRoute = async ({ params, locals }) => {
   const env = locals.runtime.env;
@@ -20,14 +21,15 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
   if (!id) return new Response(null, { status: 404 });
 
   try {
-    const data = (await request.json()) as any;
+    const data = (await request.json()) as Partial<Rule>;
     await updateRule(env, id, data);
 
     return new Response(JSON.stringify({ success: true }), {
       headers: { "Content-Type": "application/json" },
     });
-  } catch (e: any) {
-    return new Response(JSON.stringify({ error: e.message }), { status: 500 });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Unknown error";
+    return new Response(JSON.stringify({ error: message }), { status: 500 });
   }
 };
 

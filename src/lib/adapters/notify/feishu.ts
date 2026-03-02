@@ -4,7 +4,7 @@ export class FeishuAdapter implements NotifyAdapter {
   id = "feishu";
   name = "飞书";
 
-  async send(env: Env, webhookUrl: string, message: NotificationMessage): Promise<void> {
+  async send(_env: Env, webhookUrl: string, message: NotificationMessage): Promise<void> {
     const payload = {
       msg_type: "post",
       content: {
@@ -13,7 +13,7 @@ export class FeishuAdapter implements NotifyAdapter {
             title: message.title,
             content: [
               [
-                { tag: "text", text: message.text + "\n" },
+                { tag: "text", text: `${message.text}\n` },
                 ...(message.fields
                   ? Object.entries(message.fields).map(([k, v]) => ({
                       tag: "text",

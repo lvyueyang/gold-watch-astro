@@ -28,7 +28,15 @@ export class ICBCAdapter implements SourceAdapter {
         },
       );
 
-      const data: any = await res.json();
+      const data = (await res.json()) as {
+        success?: boolean;
+        resultData?: {
+          datas?: {
+            price?: string | number;
+            time?: string | number;
+          };
+        };
+      };
 
       if (data?.success && data?.resultData?.datas?.price) {
         const item = data.resultData.datas;
@@ -36,7 +44,7 @@ export class ICBCAdapter implements SourceAdapter {
 
         let ts = Date.now();
         if (item.time) {
-          ts = typeof item.time === "string" ? parseInt(item.time) : item.time;
+          ts = typeof item.time === "string" ? Number.parseInt(item.time, 10) : item.time;
         }
 
         return {

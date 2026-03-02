@@ -8,7 +8,7 @@ import {
   KV_WEBHOOK_DINGTALK,
   KV_WEBHOOK_FEISHU,
   KV_WEBHOOK_WECOM,
-} from './constants';
+} from "./constants";
 
 export async function getWebhookUrl(env: Env, channelId: string): Promise<string | null> {
   // Mapping logic: "feishu" -> "WEBHOOK_FEISHU"
@@ -33,7 +33,10 @@ export async function setWebhookUrl(env: Env, channelId: string, url: string): P
 }
 
 export async function getAdminCredentials(env: Env) {
-  const [username, password] = await Promise.all([env.KV_CONFIG.get(KV_ADMIN_USER), env.KV_CONFIG.get(KV_ADMIN_PASS)]);
+  const [username, password] = await Promise.all([
+    env.KV_CONFIG.get(KV_ADMIN_USER),
+    env.KV_CONFIG.get(KV_ADMIN_PASS),
+  ]);
   return { username, password };
 }
 

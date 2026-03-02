@@ -3,11 +3,11 @@ import { JWT_SECRET_DEFAULT, signToken } from "../../../lib/auth";
 import { getAdminCredentials, getJwtSecret } from "../../../lib/kv";
 
 export const POST: APIRoute = async ({ request, locals, cookies }) => {
-  const env = locals.runtime.env as any; // Cast to any because JWT_SECRET might not be in types yet
-  let body;
+  const env = locals.runtime.env as Env & { JWT_SECRET?: string };
+  let body: { username?: string; password?: string };
   try {
-    body = (await request.json()) as any;
-  } catch (e) {
+    body = (await request.json()) as { username?: string; password?: string };
+  } catch (_e) {
     return new Response(JSON.stringify({ error: "Invalid JSON" }), { status: 400 });
   }
 

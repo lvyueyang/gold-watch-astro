@@ -1,6 +1,9 @@
 ---
 import WebhooksPage from "../../components/admin/WebhooksPage";
 import AppLayout from "../../layouts/AppLayout.astro";
+
+const _WebhooksPage = WebhooksPage;
+const _AppLayout = AppLayout;
 ---
 <AppLayout title="通知渠道 - GoldWatch">
   <WebhooksPage client:only="react" />

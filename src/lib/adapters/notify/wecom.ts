@@ -4,7 +4,7 @@ export class WeComAdapter implements NotifyAdapter {
   id = "wecom";
   name = "企业微信";
 
-  async send(env: Env, webhookUrl: string, message: NotificationMessage): Promise<void> {
+  async send(_env: Env, webhookUrl: string, message: NotificationMessage): Promise<void> {
     const payload = {
       msgtype: "markdown",
       markdown: {

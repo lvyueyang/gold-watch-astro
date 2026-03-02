@@ -1,7 +1,20 @@
 import type { Rule } from "./types";
 
+type RuleRow = {
+  id: string;
+  instrument_id: string;
+  name: string;
+  type: Rule["type"];
+  params: Rule["params"] | string;
+  notify: Rule["notify"] | string;
+  state: Rule["state"] | string | null;
+  active: number | boolean;
+  created_at: number;
+  updated_at: number;
+};
+
 export async function getActiveRules(env: Env): Promise<Rule[]> {
-  const { results } = await env.DB.prepare("SELECT * FROM rules WHERE active = 1").all<any>();
+  const { results } = await env.DB.prepare("SELECT * FROM rules WHERE active = 1").all<RuleRow>();
 
   return results.map(parseRule);
 }
@@ -9,13 +22,13 @@ export async function getActiveRules(env: Env): Promise<Rule[]> {
 export async function getAllRules(env: Env): Promise<Rule[]> {
   const { results } = await env.DB.prepare(
     "SELECT * FROM rules ORDER BY created_at DESC",
-  ).all<any>();
+  ).all<RuleRow>();
 
   return results.map(parseRule);
 }
 
 export async function getRule(env: Env, id: string): Promise<Rule | null> {
-  const rule = await env.DB.prepare("SELECT * FROM rules WHERE id = ?").bind(id).first<any>();
+  const rule = await env.DB.prepare("SELECT * FROM rules WHERE id = ?").bind(id).first<RuleRow>();
 
   return rule ? parseRule(rule) : null;
 }
@@ -43,7 +56,7 @@ export async function createRule(env: Env, rule: Rule): Promise<void> {
 
 export async function updateRule(env: Env, id: string, rule: Partial<Rule>): Promise<void> {
   const sets: string[] = [];
-  const binds: any[] = [];
+  const binds: unknown[] = [];
 
   if (rule.name !== undefined) {
     sets.push("name = ?");
@@ -82,7 +95,7 @@ export async function updateRule(env: Env, id: string, rule: Partial<Rule>): Pro
   }
 }
 
-export async function updateRuleState(env: Env, id: string, state: any): Promise<void> {
+export async function updateRuleState(env: Env, id: string, state: unknown): Promise<void> {
   await env.DB.prepare("UPDATE rules SET state = ? WHERE id = ?")
     .bind(JSON.stringify(state), id)
     .run();
@@ -92,7 +105,7 @@ export async function deleteRule(env: Env, id: string): Promise<void> {
   await env.DB.prepare("DELETE FROM rules WHERE id = ?").bind(id).run();
 }
 
-function parseRule(row: any): Rule {
+function parseRule(row: RuleRow): Rule {
   return {
     ...row,
     instrumentId: row.instrument_id, // Map snake_case to camelCase

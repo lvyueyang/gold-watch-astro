@@ -16,8 +16,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
     let isAuthenticated = false;
     if (token) {
-      const env = locals.runtime?.env as any;
-      const kvSecret = await getJwtSecret(env);
+      const env = locals.runtime?.env as (Env & { JWT_SECRET?: string }) | undefined;
+      const kvSecret = env ? await getJwtSecret(env) : null;
       const secret = kvSecret || env?.JWT_SECRET || JWT_SECRET_DEFAULT;
       const payload = await verifyToken(token, secret);
       if (payload) {

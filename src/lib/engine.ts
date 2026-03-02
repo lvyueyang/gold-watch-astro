@@ -1,15 +1,17 @@
 import type { PriceTick, Rule } from "./types";
 
+type RuleState = NonNullable<Rule["state"]>;
+
 interface RuleResult {
   shouldFire: boolean;
-  newState: any;
+  newState: RuleState;
 }
 
 export function evaluateRule(rule: Rule, tick: PriceTick): RuleResult {
   const currentPrice = tick.price;
   const now = Date.now(); // Use current time for evaluation
   const params = rule.params;
-  const state = rule.state || {};
+  const state: RuleState = rule.state || {};
   const { lastFiredAt = 0, cooldownUntil = 0, lastValue } = state;
 
   let triggered = false;
@@ -79,7 +81,7 @@ export function evaluateRule(rule: Rule, tick: PriceTick): RuleResult {
   }
 
   // 3. Update State
-  const newState = {
+  const newState: RuleState = {
     ...state,
     lastValue: currentPrice,
   };

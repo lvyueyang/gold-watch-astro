@@ -2,8 +2,10 @@
 import "../styles/globals.css";
 interface Props {
   title?: string;
+  children?: unknown;
 }
 const { title } = Astro.props as Props;
+const _title = title;
 ---
 
 <html

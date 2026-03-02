@@ -1,3 +1,4 @@
+import type React from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -8,7 +9,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import type React from "react";
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -46,7 +46,11 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
               onConfirm();
               onOpenChange(false);
             }}
-            className={variant === "destructive" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}
+            className={
+              variant === "destructive"
+                ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                : ""
+            }
           >
             {confirmText}
           </AlertDialogAction>
