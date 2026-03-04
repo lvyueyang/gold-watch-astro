@@ -14,6 +14,8 @@ import {
 } from "@/components/ui/table";
 import { ToastProvider, useToast } from "@/components/ui/toast";
 import AdminLayout from "./AdminLayout";
+import { useInstrumentsPrices } from "@/hooks/usePrice";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 interface Instrument {
   id: string;
@@ -30,7 +32,7 @@ interface PriceData {
 
 const InstrumentsContent: React.FC = () => {
   const [instruments, setInstruments] = useState<Instrument[]>([]);
-  const [prices, setPrices] = useState<Record<string, PriceData>>({});
+  const { data: prices = {}, refetch: refetchPrices } = useInstrumentsPrices(instruments);
   const [loading, setLoading] = useState(false);
   const [cronLoading, setCronLoading] = useState(false);
   const { show } = useToast();
@@ -42,7 +44,7 @@ const InstrumentsContent: React.FC = () => {
       if (res.ok) {
         show({ title: "手动触发监控成功", variant: "default" });
         // Refresh prices after cron
-        fetchPrices();
+        refetchPrices();
       } else {
         show({ title: "触发失败", variant: "destructive" });
       }
@@ -66,37 +68,9 @@ const InstrumentsContent: React.FC = () => {
     }
   }, [show]);
 
-  const fetchPrices = useCallback(async () => {
-    if (instruments.length === 0) return;
-
-    const newPrices: Record<string, PriceData> = {};
-    await Promise.all(
-      instruments.map(async (inst) => {
-        try {
-          const res = await fetch(`/api/price?instrumentId=${inst.id}`);
-          if (res.ok) {
-            const data = (await res.json()) as PriceData;
-            newPrices[inst.id] = { price: data.price, ts: data.ts };
-          }
-        } catch (e) {
-          console.error(`Failed to fetch price for ${inst.id}`, e);
-        }
-      }),
-    );
-    setPrices((prev) => ({ ...prev, ...newPrices }));
-  }, [instruments]);
-
   useEffect(() => {
     fetchInstruments();
   }, [fetchInstruments]);
-
-  useEffect(() => {
-    if (instruments.length > 0) {
-      fetchPrices();
-      const interval = setInterval(fetchPrices, 10000); // Refresh every 10s
-      return () => clearInterval(interval);
-    }
-  }, [instruments, fetchPrices]);
 
   return (
     <>
@@ -200,13 +174,17 @@ const InstrumentsContent: React.FC = () => {
   );
 };
 
+const queryClient = new QueryClient();
+
 const InstrumentsPage: React.FC = () => {
   return (
-    <ToastProvider>
-      <AdminLayout selectedKey="instruments">
-        <InstrumentsContent />
-      </AdminLayout>
-    </ToastProvider>
+    <QueryClientProvider client={queryClient}>
+      <ToastProvider>
+        <AdminLayout selectedKey="instruments">
+          <InstrumentsContent />
+        </AdminLayout>
+      </ToastProvider>
+    </QueryClientProvider>
   );
 };
 

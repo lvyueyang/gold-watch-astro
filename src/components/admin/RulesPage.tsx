@@ -53,6 +53,7 @@ import { ToastProvider, useToast } from "@/components/ui/toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { getTypeLabel } from "@/lib/webhook-utils";
 import AdminLayout from "./AdminLayout";
+import { useInstrumentPrice } from "@/hooks/usePrice";
 
 interface RuleParams {
   target?: number;
@@ -116,17 +117,7 @@ const formatRuleTarget = (rule: Rule): string => {
 };
 
 const InstrumentPriceHint: React.FC<{ instrumentId?: string }> = ({ instrumentId }) => {
-  const { data, isLoading } = useQuery<PriceData | null>({
-    queryKey: ["price", instrumentId],
-    queryFn: async () => {
-      if (!instrumentId) return null;
-      const res = await fetch(`/api/price?instrumentId=${instrumentId}`);
-      if (!res.ok) return null;
-      return (await res.json()) as PriceData;
-    },
-    enabled: Boolean(instrumentId),
-    refetchInterval: 10000,
-  });
+  const { data, isLoading } = useInstrumentPrice(instrumentId);
 
   if (!instrumentId) {
     return <div className="text-xs text-muted-foreground">当前价格: -</div>;
@@ -440,8 +431,8 @@ const RulesContent: React.FC = () => {
       </Card>
 
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-[600px] border-primary/20 shadow-2xl bg-card">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-[600px] w-[95%] border-primary/20 shadow-2xl bg-card max-h-[85vh] flex flex-col p-0 gap-0 rounded-lg">
+          <DialogHeader className="p-6 pb-2">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-primary/10 rounded-full text-primary">
                 <Bell className="w-5 h-5" />
@@ -457,7 +448,7 @@ const RulesContent: React.FC = () => {
             </div>
           </DialogHeader>
 
-          <div className="grid gap-6 py-4">
+          <div className="grid gap-4 md:gap-6 p-6 py-4 overflow-y-auto flex-1">
             {/* Row 1: Name & Instrument */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <form.Field name="name">
@@ -469,7 +460,7 @@ const RulesContent: React.FC = () => {
                     <Input
                       id="name"
                       placeholder="例如: 黄金触达提醒"
-                      className="bg-secondary/50 border-input focus:border-primary/50 transition-colors"
+                      className="bg-secondary/50 border-input focus:border-primary/50 transition-colors text-base md:text-sm"
                       value={field.state.value}
                       onChange={(e) => field.handleChange(e.target.value)}
                     />
@@ -487,7 +478,7 @@ const RulesContent: React.FC = () => {
                       value={field.state.value}
                       onValueChange={(val) => field.handleChange(val)}
                     >
-                      <SelectTrigger className="bg-secondary/50 border-input focus:ring-primary/20">
+                      <SelectTrigger className="bg-secondary/50 border-input focus:ring-primary/20 text-base md:text-sm">
                         <SelectValue placeholder="选择标的" />
                       </SelectTrigger>
                       <SelectContent>
@@ -543,7 +534,7 @@ const RulesContent: React.FC = () => {
                       value={field.state.value}
                       onValueChange={(val) => field.handleChange(val)}
                     >
-                      <SelectTrigger className="bg-secondary/50 border-input focus:ring-primary/20">
+                      <SelectTrigger className="bg-secondary/50 border-input focus:ring-primary/20 text-base md:text-sm">
                         <SelectValue placeholder="选择类型" />
                       </SelectTrigger>
                       <SelectContent>
@@ -589,7 +580,7 @@ const RulesContent: React.FC = () => {
                               <Input
                                 type="number"
                                 placeholder="下限"
-                                className="bg-secondary/50"
+                                className="bg-secondary/50 text-base md:text-sm"
                                 value={field.state.value}
                                 onChange={(e) => field.handleChange(e.target.value)}
                               />
@@ -601,7 +592,7 @@ const RulesContent: React.FC = () => {
                               <Input
                                 type="number"
                                 placeholder="上限"
-                                className="bg-secondary/50"
+                                className="bg-secondary/50 text-base md:text-sm"
                                 value={field.state.value}
                                 onChange={(e) => field.handleChange(e.target.value)}
                               />
@@ -618,7 +609,7 @@ const RulesContent: React.FC = () => {
                               <Input
                                 type="number"
                                 placeholder="0.00"
-                                className="bg-secondary/50 pl-8"
+                                className="bg-secondary/50 pl-8 text-base md:text-sm"
                                 value={field.state.value}
                                 onChange={(e) => field.handleChange(e.target.value)}
                               />
@@ -714,7 +705,7 @@ const RulesContent: React.FC = () => {
                     </Label>
                     <Input
                       type="number"
-                      className="bg-secondary/50"
+                      className="bg-secondary/50 text-base md:text-sm"
                       value={field.state.value}
                       onChange={(e) => field.handleChange(Number(e.target.value))}
                       step={60000}
@@ -748,7 +739,7 @@ const RulesContent: React.FC = () => {
             </div>
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter className="p-6 pt-2 gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setIsModalOpen(false)} className="h-10">
               取消
             </Button>

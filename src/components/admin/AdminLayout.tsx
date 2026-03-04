@@ -3,6 +3,7 @@ import type React from "react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Toaster, ToastProvider } from "@/components/ui/toast";
+import GoldCalculator from "./GoldCalculator";
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -113,6 +114,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = (props) => {
         </nav>
       </div>
       <Toaster />
+      <GoldCalculator />
     </ToastProvider>
   );
 };
