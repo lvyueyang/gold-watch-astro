@@ -144,18 +144,20 @@ const GoldCalculator: React.FC = () => {
           <Calculator className="h-6 w-6" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[400px] w-[95%] rounded-lg border-primary/20 shadow-xl bg-card">
-        <DialogHeader className="pb-2">
+      <DialogContent className="sm:max-w-[400px] w-[95%] rounded-lg border-primary/20 shadow-xl bg-card max-h-[90vh] flex flex-col p-0 gap-0">
+        <DialogHeader className="p-4 pb-2">
           <DialogTitle className="flex items-center gap-2 text-xl">
             <div className="p-1.5 bg-primary/10 rounded-full text-primary">
               <Calculator className="h-5 w-5" />
             </div>
             金价预期计算器
           </DialogTitle>
-          <DialogDescription>输入成本、克数与费率，快速计算回本与预期目标。</DialogDescription>
+          <DialogDescription className="text-xs mt-1">
+            输入成本、克数与费率，快速计算回本与预期目标。
+          </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-4 py-2">
+        <div className="flex-1 overflow-y-auto p-4 pt-2 gap-4 flex flex-col">
           {/* Instrument Selection */}
           <div className="space-y-2">
             <div className="flex justify-between items-center">
@@ -173,13 +175,13 @@ const GoldCalculator: React.FC = () => {
               )}
             </div>
             <Select value={selectedInstrument} onValueChange={setSelectedInstrument}>
-              <SelectTrigger className="h-9">
+              <SelectTrigger className="h-9 text-base md:text-sm">
                 <SelectValue placeholder="选择标的以自动更新当前金价" />
               </SelectTrigger>
               <SelectContent>
                 {Array.isArray(instruments) &&
                   instruments.map((inst) => (
-                    <SelectItem key={inst.id} value={inst.id}>
+                    <SelectItem key={inst.id} value={inst.id} className="text-base md:text-sm">
                       {inst.name} ({inst.id})
                     </SelectItem>
                   ))}
@@ -188,8 +190,8 @@ const GoldCalculator: React.FC = () => {
           </div>
 
           {/* Inputs */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
               <Label htmlFor="costPrice" className="text-xs text-muted-foreground">
                 成本均价 (元/克)
               </Label>
@@ -199,10 +201,10 @@ const GoldCalculator: React.FC = () => {
                 placeholder="0.00"
                 value={costPrice}
                 onChange={(e) => setCostPrice(e.target.value)}
-                className="text-right h-9"
+                className="text-right h-9 text-base md:text-sm"
               />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Label htmlFor="grams" className="text-xs text-muted-foreground">
                 持有克数 (g)
               </Label>
@@ -212,13 +214,13 @@ const GoldCalculator: React.FC = () => {
                 placeholder="0"
                 value={grams}
                 onChange={(e) => setGrams(e.target.value)}
-                className="text-right h-9"
+                className="text-right h-9 text-base md:text-sm"
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
               <Label htmlFor="currentPrice" className="text-xs text-muted-foreground">
                 当前金价 (元/克)
               </Label>
@@ -228,10 +230,10 @@ const GoldCalculator: React.FC = () => {
                 placeholder="0.00"
                 value={currentPrice}
                 onChange={(e) => setCurrentPrice(e.target.value)}
-                className="text-right h-9"
+                className="text-right h-9 text-base md:text-sm"
               />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Label htmlFor="feeRate" className="text-xs text-muted-foreground">
                 卖出费率 (%)
               </Label>
@@ -241,35 +243,35 @@ const GoldCalculator: React.FC = () => {
                 placeholder="0"
                 value={feeRate}
                 onChange={(e) => setFeeRate(e.target.value)}
-                className="text-right h-9"
+                className="text-right h-9 text-base md:text-sm"
               />
             </div>
           </div>
 
-          <Separator className="my-2" />
-
           {/* Results Card */}
-          <Card className="bg-secondary/30 border-primary/10 shadow-sm">
-            <CardContent className="p-4 space-y-3">
+          <Card className="bg-secondary/30 border-primary/10 shadow-sm shrink-0">
+            <CardContent className="p-3 space-y-3">
               <div className="flex justify-between items-start">
                 <div className="flex flex-col">
-                  <span className="text-sm font-medium text-muted-foreground">回本金价</span>
+                  <span className="text-xs font-medium text-muted-foreground">回本金价</span>
                   {breakEvenPrice !== null && (
-                    <span className="text-[10px] text-muted-foreground/70">
+                    <span className="text-[10px] text-muted-foreground/70 scale-90 origin-left">
                       (含 {feeRate}% 费率{feeAmount !== null && ` ≈ ¥${feeAmount.toFixed(2)}`})
                     </span>
                   )}
                 </div>
-                <span className="text-lg font-bold text-foreground font-mono">
+                <span className="text-base font-bold text-foreground font-mono">
                   {formatCurrency(breakEvenPrice)}
                 </span>
               </div>
 
+              <Separator className="bg-primary/5" />
+
               <div className="flex justify-between items-start">
                 <div className="flex flex-col">
-                  <span className="text-sm font-medium text-muted-foreground">当前浮动盈亏</span>
+                  <span className="text-xs font-medium text-muted-foreground">当前浮动盈亏</span>
                   {goldProfit !== null && totalFeeAmount !== null && (
-                    <div className="flex flex-col text-[10px] text-muted-foreground/70">
+                    <div className="flex flex-col text-[10px] text-muted-foreground/70 scale-90 origin-left">
                       <span>金价盈亏: {formatProfit(goldProfit)}</span>
                       <span>卖出费率: -{formatCurrency(totalFeeAmount).replace("¥", "")}</span>
                     </div>
@@ -284,15 +286,13 @@ const GoldCalculator: React.FC = () => {
             </CardContent>
           </Card>
 
-          <Separator className="my-2" />
-
           {/* Expectation Input */}
-          <div className="space-y-2">
+          <div className="space-y-2 pb-2">
             <Label htmlFor="expectedProfit" className="text-sm font-medium">
               预期收益金额 (元)
             </Label>
-            <div className="flex gap-3 items-stretch">
-              <div className="relative flex-1">
+            <div className="flex gap-3 items-stretch h-10">
+              <div className="relative flex-1 h-full">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
                   ¥
                 </span>
@@ -302,14 +302,14 @@ const GoldCalculator: React.FC = () => {
                   placeholder="输入金额"
                   value={expectedProfit}
                   onChange={(e) => setExpectedProfit(e.target.value)}
-                  className="pl-7 h-full"
+                  className="pl-7 h-full text-base md:text-sm"
                 />
               </div>
-              <div className="flex-1 p-2 bg-primary/10 rounded-md border border-primary/20 flex flex-col justify-center items-center">
-                <div className="text-[10px] text-muted-foreground uppercase tracking-wider">
+              <div className="flex-1 px-2 bg-primary/10 rounded-md border border-primary/20 flex flex-col justify-center items-center h-full">
+                <div className="text-[10px] text-muted-foreground uppercase tracking-wider scale-90">
                   目标卖出价
                 </div>
-                <div className="text-base font-bold text-primary font-mono">
+                <div className="text-sm font-bold text-primary font-mono leading-none mt-0.5">
                   {formatCurrency(targetPrice)}
                 </div>
               </div>
