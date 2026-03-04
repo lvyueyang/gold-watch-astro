@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
 import type React from "react";
 import { useCallback, useEffect, useState } from "react";
@@ -13,9 +14,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ToastProvider, useToast } from "@/components/ui/toast";
-import AdminLayout from "./AdminLayout";
 import { useInstrumentsPrices } from "@/hooks/usePrice";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import AdminLayout from "./AdminLayout";
 
 interface Instrument {
   id: string;
@@ -23,11 +23,6 @@ interface Instrument {
   symbol: string;
   source: string;
   precision: number;
-}
-
-interface PriceData {
-  price: number;
-  ts: number;
 }
 
 const InstrumentsContent: React.FC = () => {

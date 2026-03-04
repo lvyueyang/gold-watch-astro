@@ -1,8 +1,4 @@
-import {
-  type QueryClient,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface PriceData {
   price: number;
@@ -30,12 +26,12 @@ export function useInstrumentsPrices(instruments: { id: string }[], refreshInter
   const queryClient = useQueryClient();
 
   return useQuery<Record<string, PriceData>>({
-    queryKey: ["prices", instruments.map(i => i.id).join(",")],
+    queryKey: ["prices", instruments.map((i) => i.id).join(",")],
     queryFn: async () => {
       if (instruments.length === 0) return {};
 
       const newPrices: Record<string, PriceData> = {};
-      
+
       // Use Promise.allSettled to avoid failing all if one fails
       const results = await Promise.allSettled(
         instruments.map(async (inst) => {
@@ -47,7 +43,7 @@ export function useInstrumentsPrices(instruments: { id: string }[], refreshInter
             return { id: inst.id, data };
           }
           throw new Error(`Failed to fetch ${inst.id}`);
-        })
+        }),
       );
 
       for (const result of results) {

@@ -51,9 +51,9 @@ import {
 } from "@/components/ui/table";
 import { ToastProvider, useToast } from "@/components/ui/toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useInstrumentPrice } from "@/hooks/usePrice";
 import { getTypeLabel } from "@/lib/webhook-utils";
 import AdminLayout from "./AdminLayout";
-import { useInstrumentPrice } from "@/hooks/usePrice";
 
 interface RuleParams {
   target?: number;
@@ -64,11 +64,6 @@ interface RuleParams {
 interface RuleNotify {
   channels: string[];
   throttleMs: number;
-}
-
-interface PriceData {
-  price: number;
-  ts: number;
 }
 
 interface Rule {
